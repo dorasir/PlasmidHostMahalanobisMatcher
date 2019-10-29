@@ -49,6 +49,7 @@ plasmid_relative_abundance_dir = 'plasmids_relative_abundance'
 # plasmid_relative_abundance_list = [s + '_relative_markov_abundance_k{}.npy'.format(k) for s in plasmid_dir_list]
 plasmid_relative_abundance_list = [s + '_z_score_k{}.npy'.format(k) for s in plasmid_dir_list]
 
+'''Number of nucleotide'''
 NT_TYPE_NUM = 4
 
 nucleotides = ['A', 'C', 'G', 'T']
@@ -60,7 +61,8 @@ for i, mer in enumerate(product(nucleotides, repeat=k)):
 def count_single_nucleotide(name, output_folder='temp_dir'):
     '''
     Count the number of occurrence of single nucleotides in a genome
-    :param name: The name of the organism, can be a fasta file or folder containing split genome
+
+    :param str name: The name of the organism, can be a fasta file or folder containing split genome
     :param output_folder: The path to output the counting result
     :return:
     '''
@@ -70,13 +72,13 @@ def count_single_nucleotide(name, output_folder='temp_dir'):
         count_single_nt_file(name, output_folder)
 
 
-def count_single_nt_folder(name, output_folder='temp_dir'):
-    matrix_filename = os.path.join(output_folder, name + '_single_nt.npy')
+def count_single_nt_folder(path, output_folder='temp_dir'):
+    genome_name = os.path.split(path)[-1]
+    matrix_filename = os.path.join(output_folder, genome_name + '_single_nt.npy')
     if os.path.exists(matrix_filename):
         return
-    full_dir_path = os.path.join(split_dir, name)
-    fa_list = os.listdir(full_dir_path)
-    fa_list = [os.path.join(full_dir_path, fa) for fa in fa_list]
+    fa_list = os.listdir(path)
+    fa_list = [os.path.join(path, fa) for fa in fa_list]
     occ_matrix = np.zeros((len(fa_list), NT_TYPE_NUM))
     for i, fa in enumerate(fa_list):
         occ = helper.count_nucleotide(fa)
@@ -93,23 +95,32 @@ def count_single_nt_file(plasmid_name, output_folder='temp_dir'):
     np.save(nt_count_filename, occ)
 
 
-def calculate_frequency_product_single(single_matrix: np.ndarray, idx, k):
+def calculate_frequency_product_single(single_matrix: np.ndarray, kmer_idx, k):
+    '''
+    For a single k-mer, calculate the product of the frequency of each single nucleotide, f_i*f_j...
+
+    :param ndarray single_matrix: The frequency matrix for each single nucleotide, f_i. Has shape n*k or n, if for single sequence
+    :param int kmer_idx: The index representing the k-mer
+    :param int k: k-mer length
+    :return:
+    '''
     if len(single_matrix.shape) == 2:
         single_frequency_product = np.ones(single_matrix.shape[0])
     else:
         single_frequency_product = 1
     for i in range(k):
         if len(single_matrix.shape) == 2:
-            single_frequency_product = single_frequency_product * single_matrix[:, int(idx % k)]
+            single_frequency_product = single_frequency_product * single_matrix[:, int(kmer_idx % k)]
         elif len(single_matrix.shape) == 1:
-            single_frequency_product = single_frequency_product * single_matrix[int(idx % k)]
-        idx = idx / k
+            single_frequency_product = single_frequency_product * single_matrix[int(kmer_idx % k)]
+        kmer_idx = kmer_idx / k
     return single_frequency_product
 
 
 def calculate_frequency_product_all(multiple_matrix, single_matrix, k):
     '''
-    For all k-mer, calculate the product of the frequency of each single nucleotide
+    For all k-mer, calculate the product of the frequency of each single nucleotide, f_i*f_j...
+
     :param multiple_matrix: frequency matrix for k-mer
     :param single_matrix: frequency matrix for single nucleotide
     :param k: k-mer length
@@ -126,10 +137,11 @@ def calculate_frequency_product_all(multiple_matrix, single_matrix, k):
 
 def calculate_relative_abundance(multiple_matrix, single_matrix, k):
     '''
-    Calculate the relative abundance defined in the Mahalanobis paper
-    :param multiple_matrix: frequency matrix for k-mer
-    :param single_matrix: frequency matrix for single nucleotide
-    :param k: k-mer length
+    Calculate the relative abundance, f_ij.../f_i*f_j...
+
+    :param ndarray multiple_matrix: Frequency matrix for k-mer
+    :param ndarray single_matrix: Frequency matrix for single nucleotide
+    :param int k: k-mer length
     :return:
     '''
     frequency_product = calculate_frequency_product_all(multiple_matrix, single_matrix, k)
