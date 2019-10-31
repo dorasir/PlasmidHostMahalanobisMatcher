@@ -382,11 +382,6 @@ class TeelingZScore:
 
 
 
-
-
-
-
-
 def count_plasmid_kmer(plasmid_name):
     fa_path = os.path.join(plasmid_dir, plasmid_name)
     k_mer_count = np.zeros(NT_TYPE_NUM ** k)
