@@ -15,6 +15,8 @@ class MahalanobisRelativeAbundance:
         self.plasmid_single_count = 0
         self.plasmid_multiple_count = 0
 
+        self.jellyfish_path = ''
+
         self.k = k
         nucleotides = ['A', 'C', 'G', 'T']
         self.mer_to_idx = {}
@@ -104,11 +106,21 @@ class MahalanobisRelativeAbundance:
                 frequency_product[i] = MahalanobisRelativeAbundance.calculate_frequency_product_single(single_frequency, i, k)
         return frequency_product
 
-    def exec_jellyfish(self, fasta_path, hash_path, jellyfish_path):
-        command = '{} count -m {} -s 200M -t 8 -o {} {}'.format(jellyfish_path, self.k, hash_path, fasta_path)
+    def exec_jellyfish(self, fasta_path):
+        """
+        Runs jellyfish for a given fasta file and returns the count of each kmer
+        :param fasta_path:
+        :param hash_path:
+        :param jellyfish_path:
+        :return:
+        """
+
+        hash_path = fasta_path + '_hash'
+
+        command = '{} count -m {} -s 200M -t 8 -o {} {}'.format(self.jellyfish_path, self.k, hash_path, fasta_path)
         if not os.path.exists(hash_path + '_0'):
             os.system(command)
-        read_hash_command = '{} dump -c {}_0'.format(jellyfish_path, hash_path)
+        read_hash_command = '{} dump -c {}_0'.format(self.jellyfish_path, hash_path)
         counts = os.popen(read_hash_command).read()
         counts = counts.split('\n')[:-1]
         k_mer_count = np.zeros(NT_TYPE_NUM ** self.k)
@@ -120,11 +132,20 @@ class MahalanobisRelativeAbundance:
 
     def count_kmer_folder(self, path, save_result=True, output_folder='temp_dir'):
         genome_name = os.path.split(path)[-1]
-        kmer_count_path = os.path.join(output_folder, genome_name + 'kmer.npy')
+
+        kmer_count_path = os.path.join(output_folder, genome_name + '_kmer.npy')
         if os.path.exists(kmer_count_path):
             kmer_count = np.load(kmer_count_path)
             return kmer_count
-        kmer_count = np.zeros()
+
+        fasta_list = os.listdir(path)
+
+        kmer_count = np.zeros((len(fasta_list), NT_TYPE_NUM ** self.k))
+
+        for fasta_filename in fasta_list:
+            fasta_path = os.path.join(path, fasta_filename)
+            fasta_kmer_count = self.exec_jellyfish(fasta_path)
+
 
     def count_kmer_file(self, plasmid_name):
         plasmid_name =
