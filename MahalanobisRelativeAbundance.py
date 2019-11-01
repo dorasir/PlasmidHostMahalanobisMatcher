@@ -138,7 +138,7 @@ class MahalanobisRelativeAbundance:
         counts = count.split('\n')[:-1]
         for m_c in counts:
             (m, c) = m_c.split(' ')
-            k_mer_count[mer_to_idx[m]] = c
+            k_mer_count[self.mer_to_idx[m]] = c
         k_mer_count_filename = os.path.join(plasmid_matrix_dir, plasmid_name) + '_k{}'.format(k)
         np.save(k_mer_count_filename, k_mer_count)
 
