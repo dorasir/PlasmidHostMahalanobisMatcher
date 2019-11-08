@@ -2,6 +2,7 @@ import numpy as np
 import os
 import helper
 from itertools import product
+from multiprocessing import Pool
 
 NT_TYPE_NUM = 4
 
@@ -71,6 +72,19 @@ class MahalanobisRelativeAbundance:
         if save_result:
             np.save(nt_count_single_path, occ)
         return occ
+
+    def count_kmer(self, path, output_directory_path='temp_dir'):
+        """
+        Count the number of occurrence of kmers in a genome
+
+        :param str path: The name of the organism, can be a fasta file or folder containing split genome
+        :param output_directory_path: The path to output the counting result
+        :return:
+        """
+        if os.path.isdir(path):
+            return self.count_kmer_directory(path, output_directory_path=output_directory_path)
+        elif os.path.isfile(path):
+            return self.count_kmer_file(path, output_directory_path=output_directory_path)
 
     def exec_jellyfish(self, fasta_file_path):
         """
@@ -193,5 +207,11 @@ class MahalanobisRelativeAbundance:
         relative_abundance = multiple_matrix / frequency_product
         return relative_abundance
 
+    def calculate_mahalanobis_distance(self):
+
     def calc_distance(self, thread=1):
         self.host_single_count = self.count_single_nucleotide(self.host_directory_path)
+        self.host_multiple_count = self.count_kmer_directory(self.host_directory_path)
+
+        self.plasmid_single_count = self.count_single_nucleotide(self.plasmid_directory_path)
+        self.plasmid_multiple_count = self.count_kmer_directory(self.plasmid_directory_path)
