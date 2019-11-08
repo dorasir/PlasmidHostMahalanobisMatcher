@@ -13,17 +13,17 @@ class MahalanobisRelativeAbundance:
         self.host_directory_path = host_directory_path
         self.plasmid_directory_path = plasmid_directory_path
 
-        self.host_single_count = 0
-        self.host_kmer_count = 0
+        self.host_single_count = 0  # list with n (k, 4) ndarray, k is number of 5k base fragments
+        self.host_kmer_count = 0  # (n, 4**k) ndarray
         self.host_single_freq = 0
         self.host_kmer_freq = 0
-        self.host_relative_abundance = 0 # (n, 4**k) dim ndarray
+        self.host_relative_abundance = 0  # (n, 4**k) ndarray
 
-        self.plasmid_single_count = 0
+        self.plasmid_single_count = 0  # (n, 4)
         self.plasmid_kmer_count = 0
         self.plasmid_single_freq = 0
         self.plasmid_kmer_freq = 0
-        self.plasmid_relative_abundance = 0 # (n) dim ndarray
+        self.plasmid_relative_abundance = 0  # (n) dim ndarray
 
         self.jellyfish_path = ''
 
@@ -222,9 +222,35 @@ class MahalanobisRelativeAbundance:
         distance = diff[None, :].dot(cov_inv).dot(diff)
         return distance
 
+    @staticmethod
+    def normalize(ndarray):
+        if len(ndarray.shape) == 2:
+            return ndarray / ndarray.sum(axis=1)[:, None]
+        if len(ndarray.shape) == 1:
+            return ndarray / ndarray.sum()
+
     def calc_distance(self, thread=1):
+        if thread != 1:
+            p = Pool(thread)
+
+            host_directory_list = os.listdir(self.host_directory_path)
+            host_directory_list = [os.path.join(self.host_directory_path, f) for f in host_directory_list]
+            self.host_single_count = p.map(self.count_single_nucleotide, host_directory_list)
+            self.host_kmer_count = p.map(self.count_kmer, host_directory_list)
+            self.host_single_freq = p.map(self.normalize, self.host_single_count)
+            self.host_kmer_freq = p.map(self.normalize, self.host_kmer_count)
+
+            plasmid_directory_list = os.listdir(self.plasmid_directory_path)
+            plasmid_directory_list = [os.path.join(self.plasmid_directory_path, f) for f in plasmid_directory_list]
+            self.plasmid_single_count = p.map(self.count_single_nucleotide, plasmid_directory_list)
+            self.plasmid_kmer_count = p.map(self.count_kmer, plasmid_directory_list)
+            self.plasmid_single_freq = p.map(self.normalize, )
+
+
         self.host_single_count = self.count_single_nucleotide(self.host_directory_path)
         self.host_kmer_count = self.count_kmer_directory(self.host_directory_path)
+        self.host_single_freq = self.host_single_count / self.host_single_count.sum(axis=1)[:, None]
+        self.host_kmer_freq = self.host_kmer_count / self.host_kmer_freq.sum(axis=1)[:, None]
 
         self.plasmid_single_count = self.count_single_nucleotide(self.plasmid_directory_path)
         self.plasmid_kmer_count = self.count_kmer_directory(self.plasmid_directory_path)
