@@ -198,7 +198,7 @@ class MahalanobisRelativeAbundance:
                                                                                                        i, k)
         return frequency_product
 
-    def calculate_relative_abundance(self, multiple_matrix, single_matrix, k):
+    def calculate_relative_abundance(self, multiple_matrix, single_matrix):
         """
         Calculate the relative abundance, f_ij.../f_i*f_j...
 
@@ -207,7 +207,7 @@ class MahalanobisRelativeAbundance:
         :param int k: k-mer length
         :return:
         """
-        frequency_product = self.calculate_frequency_product_all(multiple_matrix, single_matrix, k)
+        frequency_product = self.calculate_frequency_product_all(multiple_matrix, single_matrix, self.k)
         multiple_matrix[multiple_matrix == 0] = 1
         frequency_product[frequency_product == 0] = 1
         relative_abundance = multiple_matrix / frequency_product
@@ -235,16 +235,20 @@ class MahalanobisRelativeAbundance:
 
             host_directory_list = os.listdir(self.host_directory_path)
             host_directory_list = [os.path.join(self.host_directory_path, f) for f in host_directory_list]
+
             self.host_single_count = p.map(self.count_single_nucleotide, host_directory_list)
             self.host_kmer_count = p.map(self.count_kmer, host_directory_list)
+
             self.host_single_freq = p.map(self.normalize, self.host_single_count)
             self.host_kmer_freq = p.map(self.normalize, self.host_kmer_count)
+
+            self.host_relative_abundance = p.starmap(self.calculate_relative_abundance)
 
             plasmid_directory_list = os.listdir(self.plasmid_directory_path)
             plasmid_directory_list = [os.path.join(self.plasmid_directory_path, f) for f in plasmid_directory_list]
             self.plasmid_single_count = p.map(self.count_single_nucleotide, plasmid_directory_list)
             self.plasmid_kmer_count = p.map(self.count_kmer, plasmid_directory_list)
-            self.plasmid_single_freq = p.map(self.normalize, )
+            self.plasmid_single_freq = p.map(self.normalize, plasmid_directory_list)
 
 
         self.host_single_count = self.count_single_nucleotide(self.host_directory_path)
