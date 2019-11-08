@@ -14,10 +14,16 @@ class MahalanobisRelativeAbundance:
         self.plasmid_directory_path = plasmid_directory_path
 
         self.host_single_count = 0
-        self.host_multiple_count = 0
+        self.host_kmer_count = 0
+        self.host_single_freq = 0
+        self.host_kmer_freq = 0
+        self.host_relative_abundance = 0 # (n, 4**k) dim ndarray
 
         self.plasmid_single_count = 0
-        self.plasmid_multiple_count = 0
+        self.plasmid_kmer_count = 0
+        self.plasmid_single_freq = 0
+        self.plasmid_kmer_freq = 0
+        self.plasmid_relative_abundance = 0 # (n) dim ndarray
 
         self.jellyfish_path = ''
 
@@ -208,10 +214,17 @@ class MahalanobisRelativeAbundance:
         return relative_abundance
 
     def calculate_mahalanobis_distance(self):
+        plasmid_relative_abundance = self.plasmid_relative_abundance.flatten()
+        host_mean = self.host_relative_abundance.mean(axis=0)
+        diff = plasmid_relative_abundance - host_mean
+        cov = np.cov(self.host_relative_abundance.T)
+        cov_inv = np.linalg.inv(cov)
+        distance = diff[None, :].dot(cov_inv).dot(diff)
+        return distance
 
     def calc_distance(self, thread=1):
         self.host_single_count = self.count_single_nucleotide(self.host_directory_path)
-        self.host_multiple_count = self.count_kmer_directory(self.host_directory_path)
+        self.host_kmer_count = self.count_kmer_directory(self.host_directory_path)
 
         self.plasmid_single_count = self.count_single_nucleotide(self.plasmid_directory_path)
-        self.plasmid_multiple_count = self.count_kmer_directory(self.plasmid_directory_path)
+        self.plasmid_kmer_count = self.count_kmer_directory(self.plasmid_directory_path)
