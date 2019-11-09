@@ -58,6 +58,7 @@ class MahalanobisRelativeAbundance:
             occ_matrix = np.load(nt_count_single_path)
             return occ_matrix
         fa_list = os.listdir(path)
+        fa_list.sort()
         fa_list = [os.path.join(path, fa) for fa in fa_list]
         occ_matrix = np.zeros((len(fa_list), NT_TYPE_NUM))
         for i, fa in enumerate(fa_list):
@@ -242,13 +243,25 @@ class MahalanobisRelativeAbundance:
             self.host_single_freq = p.map(self.normalize, self.host_single_count)
             self.host_kmer_freq = p.map(self.normalize, self.host_kmer_count)
 
-            self.host_relative_abundance = p.starmap(self.calculate_relative_abundance)
+            self.host_relative_abundance = p.starmap(self.calculate_relative_abundance, zip(self.host_kmer_freq, self.host_single_freq))
 
-            plasmid_directory_list = os.listdir(self.plasmid_directory_path)
-            plasmid_directory_list = [os.path.join(self.plasmid_directory_path, f) for f in plasmid_directory_list]
-            self.plasmid_single_count = p.map(self.count_single_nucleotide, plasmid_directory_list)
-            self.plasmid_kmer_count = p.map(self.count_kmer, plasmid_directory_list)
-            self.plasmid_single_freq = p.map(self.normalize, plasmid_directory_list)
+            # plasmid_directory_list = os.listdir(self.plasmid_directory_path)
+            # plasmid_directory_list = [os.path.join(self.plasmid_directory_path, f) for f in plasmid_directory_list]
+
+            # self.plasmid_single_count = p.map(self.count_single_nucleotide, plasmid_directory_list)
+            # self.plasmid_kmer_count = p.map(self.count_kmer, plasmid_directory_list)
+            #
+            # self.plasmid_single_freq = p.map(self.normalize, self.plasmid_single_count)
+            # self.plasmid_kmer_freq = p.map(self.normalize, self.)
+
+            self.plasmid_single_count = self.count_single_nucleotide(self.plasmid_directory_path)
+            self.plasmid_kmer_count = self.count_kmer(self.plasmid_kmer_count)
+
+            self.plasmid_single_freq = self.normalize(self.plasmid_single_count)
+            self.plasmid_kmer_freq = self.normalize(self.plasmid_kmer_count)
+
+            self.plasmid_relative_abundance = self.calculate_relative_abundance(self.plasmid_kmer_freq, self.plasmid_single_freq)
+
 
 
         self.host_single_count = self.count_single_nucleotide(self.host_directory_path)
