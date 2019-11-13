@@ -8,22 +8,28 @@ NT_TYPE_NUM = 4
 
 
 class MahalanobisRelativeAbundance:
-    def __init__(self, host_directory_path, plasmid_directory_path, k=3, temp_directory_path='temp_dir'):
+    def __init__(self, host_directory_path, plasmid_directory_path, k=3, temp_directory_path='temp_dir', host_name_list=[], plasmid_name_list=[]):
 
         self.host_directory_path = host_directory_path
         self.plasmid_directory_path = plasmid_directory_path
 
-        self.host_single_count = 0  # list with n (k, 4) ndarray, k is number of 5k base fragments
-        self.host_kmer_count = 0  # (n, 4**k) ndarray
+
+        self.host_path_list = []
+        self.plasmid_path_list = []
+
+        self.host_single_count = 0  # list of n (k, 4) ndarray, k is number of fragments
+        self.host_kmer_count = 0  # list of n (k, 4**k) ndarray
         self.host_single_freq = 0
         self.host_kmer_freq = 0
-        self.host_relative_abundance = 0  # (n, 4**k) ndarray
+        self.host_relative_abundance = 0  # list of n (k, 4**k) ndarray
 
         self.plasmid_single_count = 0  # (n, 4)
         self.plasmid_kmer_count = 0
         self.plasmid_single_freq = 0
         self.plasmid_kmer_freq = 0
         self.plasmid_relative_abundance = 0  # (n) dim ndarray
+
+        self.mahalanobis_distance = []
 
         self.jellyfish_path = ''
 
@@ -214,11 +220,10 @@ class MahalanobisRelativeAbundance:
         relative_abundance = multiple_matrix / frequency_product
         return relative_abundance
 
-    def calculate_mahalanobis_distance(self):
-        plasmid_relative_abundance = self.plasmid_relative_abundance.flatten()
-        host_mean = self.host_relative_abundance.mean(axis=0)
+    def calculate_mahalanobis_distance(self, host_relative_abundance, plasmid_relative_abundance):
+        host_mean = host_relative_abundance.mean(axis=0)
         diff = plasmid_relative_abundance - host_mean
-        cov = np.cov(self.host_relative_abundance.T)
+        cov = np.cov(host_relative_abundance.T)
         cov_inv = np.linalg.inv(cov)
         distance = diff[None, :].dot(cov_inv).dot(diff)
         return distance
@@ -243,7 +248,8 @@ class MahalanobisRelativeAbundance:
             self.host_single_freq = p.map(self.normalize, self.host_single_count)
             self.host_kmer_freq = p.map(self.normalize, self.host_kmer_count)
 
-            self.host_relative_abundance = p.starmap(self.calculate_relative_abundance, zip(self.host_kmer_freq, self.host_single_freq))
+            self.host_relative_abundance = p.starmap(self.calculate_relative_abundance,
+                                                     zip(self.host_kmer_freq, self.host_single_freq))
 
             # plasmid_directory_list = os.listdir(self.plasmid_directory_path)
             # plasmid_directory_list = [os.path.join(self.plasmid_directory_path, f) for f in plasmid_directory_list]
@@ -260,7 +266,12 @@ class MahalanobisRelativeAbundance:
             self.plasmid_single_freq = self.normalize(self.plasmid_single_count)
             self.plasmid_kmer_freq = self.normalize(self.plasmid_kmer_count)
 
-            self.plasmid_relative_abundance = self.calculate_relative_abundance(self.plasmid_kmer_freq, self.plasmid_single_freq)
+            self.plasmid_relative_abundance = self.calculate_relative_abundance(self.plasmid_kmer_freq,
+                                                                                self.plasmid_single_freq)
+
+            self.mahalanobis_distance = p.starmap(self.calculate_mahalanobis_distance,
+                                                  zip(self.host_relative_abundance, [self.plasmid_relative_abundance]
+                                                      * len(self.host_relative_abundance)))
 
 
 
