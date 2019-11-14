@@ -273,8 +273,6 @@ class MahalanobisRelativeAbundance:
                                                   zip(self.host_relative_abundance, [self.plasmid_relative_abundance]
                                                       * len(self.host_relative_abundance)))
 
-
-
         self.host_single_count = self.count_single_nucleotide(self.host_directory_path)
         self.host_kmer_count = self.count_kmer_directory(self.host_directory_path)
         self.host_single_freq = self.host_single_count / self.host_single_count.sum(axis=1)[:, None]
