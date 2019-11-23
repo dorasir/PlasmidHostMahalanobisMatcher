@@ -11,8 +11,7 @@ class Add:
         p = Pool(2)
         print(p.starmap(self.add, zip(a, b)))
 
-if __name__ == '__main__':
-    t = Add()
-    t.exec_add()
 
-    t = MahalanobisRelativeAbundance('data/hosts', 'data/plasmids')
+if __name__ == '__main__':
+    t = MahalanobisRelativeAbundance('data/hosts/splited', 'data/plasmids')
+    t.calc_distance(thread=2)

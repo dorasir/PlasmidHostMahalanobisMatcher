@@ -7,9 +7,9 @@ from typing import List
 
 
 plasmids_list = []
-hosts_list = os.listdir('hosts_processed')
-hosts_list.sort()
-host_list_dict = dict((name, i) for i, name in enumerate(hosts_list))
+# hosts_list = os.listdir('hosts_processed')
+# hosts_list.sort()
+# host_list_dict = dict((name, i) for i, name in enumerate(hosts_list))
 
 cafe_path = './cafe_linux'
 plasmids_path = 'plasmids'
@@ -46,8 +46,8 @@ def load_obj(name):
     with open(name, 'rb') as f:
         return pickle.load(f)
 
-host_to_idx = load_obj('host_to_idx.pkl')
-idx_to_host = load_obj('idx_to_host.pkl')
+# host_to_idx = load_obj('host_to_idx.pkl')
+# idx_to_host = load_obj('idx_to_host.pkl')
 
 
 def check_plasmid_fn(plasmid_name):
