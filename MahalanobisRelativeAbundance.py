@@ -8,7 +8,7 @@ NT_TYPE_NUM = 4
 
 
 class MahalanobisRelativeAbundance:
-    def __init__(self, host_directory_path, plasmid_directory_path, k=3, temp_directory_path='temp_dir'):
+    def __init__(self, host_directory_path, plasmid_directory_path, k=3, temp_directory_path='temp_dir', jellyfish_path='./jellyfish-macosx'):
 
         self.host_directory_path = host_directory_path
         self.plasmid_directory_path = plasmid_directory_path
@@ -25,7 +25,7 @@ class MahalanobisRelativeAbundance:
         self.plasmid_kmer_freq = 0
         self.plasmid_relative_abundance = 0  # (n) dim ndarray
 
-        self.jellyfish_path = './jellyfish'
+        self.jellyfish_path = jellyfish_path
 
         self.k = k
         nucleotides = ['A', 'C', 'G', 'T']
