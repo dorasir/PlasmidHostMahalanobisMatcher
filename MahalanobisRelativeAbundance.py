@@ -34,6 +34,11 @@ class MahalanobisRelativeAbundance:
             self.mer_to_idx[''.join(list(mer))] = i
 
         self.temp_directory_path = temp_directory_path
+        if not os.path.exists(temp_directory_path):
+            print('Temp directory not exist, creating...')
+        else:
+            if not os.path.isdir(temp_directory_path):
+                print('Exists file with name conflict, exiting...')
 
     @staticmethod
     def count_single_nucleotide(path, output_directory_path='temp_dir'):
