@@ -84,7 +84,11 @@ def lowess_adjustment(y: List[np.ndarray], x, target):
 
 
 def count_nucleotide(file):
-    f = open(file)
+    try:
+        f = open(file)
+    except UnicodeDecodeError:
+        print(file)
+        return np.ones(4)
     occ = np.zeros(4)
     for line in f.readlines():
         if line[0] == '>':
