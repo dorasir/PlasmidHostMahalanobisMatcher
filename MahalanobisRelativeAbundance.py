@@ -106,8 +106,8 @@ class MahalanobisRelativeAbundance:
         :param jellyfish_path:
         :return k_mer_count: a length n numpy array, where n = NT_TYPE_NUM ** k, containing the kmer count for given fasta file
         """
-
-        hash_path = os.path.split(fasta_file_path)[-1] + '_hash'
+        genome_name = os.path.split(fasta_file_path)[-2]
+        hash_path = genome_name + '_' + os.path.split(fasta_file_path)[-1] + '_hash'
         hash_path = os.path.join(temp_directory_path, hash_path)
 
         command = '{} count -m {} -s 200M -t 8 -o {} {}'.format(self.jellyfish_path, self.k, hash_path, fasta_file_path)
