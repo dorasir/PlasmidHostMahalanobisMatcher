@@ -98,7 +98,7 @@ class MahalanobisRelativeAbundance:
         elif os.path.isfile(path):
             return self.count_kmer_file(path, output_directory_path=output_directory_path)
 
-    def exec_jellyfish(self, fasta_file_path):
+    def exec_jellyfish(self, fasta_file_path, temp_directory_path='temp_dir'):
         """
         Runs jellyfish for a given fasta file and returns the count of each kmer
         :param fasta_file_path:
@@ -107,7 +107,8 @@ class MahalanobisRelativeAbundance:
         :return k_mer_count: a length n numpy array, where n = NT_TYPE_NUM ** k, containing the kmer count for given fasta file
         """
 
-        hash_path = fasta_file_path + '_hash'
+        hash_path = os.path.split(fasta_file_path)[-1] + '_hash'
+        hash_path = os.path.join(temp_directory_path, hash_path)
 
         command = '{} count -m {} -s 200M -t 8 -o {} {}'.format(self.jellyfish_path, self.k, hash_path, fasta_file_path)
         if not os.path.exists(hash_path + '_0'):
@@ -120,7 +121,7 @@ class MahalanobisRelativeAbundance:
             (mer, count) = mer_count.split(' ')
             k_mer_count[self.mer_to_idx[mer]] = count
 
-        os.remove(hash_path + '_0')
+        # os.remove(hash_path + '_0')
 
         return k_mer_count
 
