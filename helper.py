@@ -90,16 +90,20 @@ def count_nucleotide(file):
         print(file)
         return np.ones(4)
     occ = np.zeros(4)
-    for line in f.readlines():
-        if line[0] == '>':
-            continue
-        for c in line:
-            if c == 'A':
-                occ[0] += 1
-            elif c == 'C':
-                occ[1] += 1
-            elif c == 'G':
-                occ[2] += 1
-            elif c == 'T':
-                occ[3] += 1
-    return occ
+    try:
+        for line in f.readlines():
+            if line[0] == '>':
+                continue
+            for c in line:
+                if c == 'A':
+                    occ[0] += 1
+                elif c == 'C':
+                    occ[1] += 1
+                elif c == 'G':
+                    occ[2] += 1
+                elif c == 'T':
+                    occ[3] += 1
+        return occ
+    except UnicodeDecodeError:
+        print(file)
+        return np.ones(4)
