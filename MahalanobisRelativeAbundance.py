@@ -237,10 +237,17 @@ class MahalanobisRelativeAbundance:
             return ndarray / ndarray.sum()
 
     def calc_distance(self, thread=1):
-        if thread == 1:
-            host_directory_list = os.listdir(self.host_directory_path)
-            host_directory_list = [os.path.join(self.host_directory_path, f) for f in host_directory_list if not f.startswith('.')]
+        host_directory_list = os.listdir(self.host_directory_path)
+        host_directory_list = [os.path.join(self.host_directory_path, f) for f in host_directory_list if
+                               not f.startswith('.')]
+        host_directory_list.sort()
 
+        plasmid_directory_list = os.listdir(self.plasmid_directory_path)
+        plasmid_directory_list = [os.path.join(self.plasmid_directory_path, f) for f in plasmid_directory_list if
+                                  not f.startswith('.')]
+        plasmid_directory_list.sort()
+
+        if thread == 1:
             self.host_single_count = *map(self.count_single_nucleotide, host_directory_list),
             self.host_kmer_count = *map(self.count_kmer, host_directory_list),
 
@@ -248,9 +255,6 @@ class MahalanobisRelativeAbundance:
             self.host_kmer_freq = *map(self.normalize, self.host_kmer_count),
 
             self.host_relative_abundance = *map(self.calculate_relative_abundance, self.host_kmer_freq, self.host_single_freq),
-
-            plasmid_directory_list = os.listdir(self.plasmid_directory_path)
-            plasmid_directory_list = [os.path.join(self.plasmid_directory_path, f) for f in plasmid_directory_list if not f.startswith('.')]
 
             self.plasmid_single_count = *map(self.count_single_nucleotide, plasmid_directory_list),
             self.plasmid_kmer_count = *map(self.count_kmer, plasmid_directory_list),
@@ -267,10 +271,6 @@ class MahalanobisRelativeAbundance:
         elif thread != 1:
             p = Pool(thread)
 
-            host_directory_list = os.listdir(self.host_directory_path)
-            host_directory_list = [os.path.join(self.host_directory_path, f) for f in host_directory_list if
-                                   not f.startswith('.')]
-
             self.host_single_count = p.map(self.count_single_nucleotide, host_directory_list)
             self.host_kmer_count = p.map(self.count_kmer, host_directory_list)
 
@@ -278,10 +278,6 @@ class MahalanobisRelativeAbundance:
             self.host_kmer_freq = p.map(self.normalize, self.host_kmer_count)
 
             self.host_relative_abundance = p.starmap(self.calculate_relative_abundance, zip(self.host_kmer_freq, self.host_single_freq))
-
-            plasmid_directory_list = os.listdir(self.plasmid_directory_path)
-            plasmid_directory_list = [os.path.join(self.plasmid_directory_path, f) for f in plasmid_directory_list if
-                                      not f.startswith('.')]
 
             self.plasmid_single_count = p.map(self.count_single_nucleotide, plasmid_directory_list)
             self.plasmid_kmer_count = p.map(self.count_kmer, plasmid_directory_list)

@@ -1,5 +1,6 @@
 from multiprocessing import Pool
 from MahalanobisRelativeAbundance import MahalanobisRelativeAbundance
+import numpy as np
 
 class Add:
     def add(self, a, b):
@@ -13,5 +14,6 @@ class Add:
 
 
 if __name__ == '__main__':
-    t = MahalanobisRelativeAbundance('data/hosts/splited', 'data/plasmids')
-    t.calc_distance(thread=2)
+    t = MahalanobisRelativeAbundance('data/hosts/splited', 'data/plasmids', jellyfish_path='./jellyfish-linux')
+    distance = t.calc_distance(thread=2)
+    np.save('result.npy', distance)
