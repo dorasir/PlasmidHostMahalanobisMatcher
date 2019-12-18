@@ -4,6 +4,8 @@ import helper
 from itertools import product
 from multiprocessing import Pool
 
+# np.seterr(all='raise')
+
 NT_TYPE_NUM = 4
 
 
@@ -223,24 +225,41 @@ class MahalanobisRelativeAbundance:
         relative_abundance = multiple_matrix / frequency_product
         return relative_abundance
 
-    def calculate_mahalanobis_distance(self):
-        self.mahalanobis_distance = np.zeros((len(self.plasmid_relative_abundance), len(self.host_relative_abundance)))
-        for i, plasmid_ra in enumerate(self.plasmid_relative_abundance):
-            for j, host_ra in enumerate(self.host_relative_abundance):
-                plasmid_relative_abundance = plasmid_ra.flatten()
-                host_mean = host_ra.mean(axis=0)
-                diff = plasmid_relative_abundance - host_mean
-                cov = np.cov(host_ra.T)
-                cov_inv = np.linalg.inv(cov)
-                distance = diff[None, :].dot(cov_inv).dot(diff)
-                self.mahalanobis_distance[i, j] = distance
+    @staticmethod
+    def mahalanobis(u: np.ndarray, v: np.ndarray):
+        u = u.flatten()
+        v_mean = v.mean(axis=0)
+        diff = u - v_mean
+        cov = np.cov(v.T)
+        cov_inv = np.linalg.inv(cov)
+        distance = diff[None, :].dot(cov_inv).dot(diff)
+        return distance
+
+    def calculate_mahalanobis_distance(self, p=None):
+        if p:
+            distance = p.starmap(self.mahalanobis, product(self.plasmid_relative_abundance, self.host_relative_abundance))
+            distance = np.asarray(distance)
+            self.mahalanobis_distance = distance.reshape((len(self.plasmid_relative_abundance), len(self.host_relative_abundance)))
+
+        else:
+            self.mahalanobis_distance = np.zeros(
+                (len(self.plasmid_relative_abundance), len(self.host_relative_abundance)))
+            for i, plasmid_ra in enumerate(self.plasmid_relative_abundance):
+                for j, host_ra in enumerate(self.host_relative_abundance):
+                    plasmid_relative_abundance = plasmid_ra.flatten()
+                    host_mean = host_ra.mean(axis=0)
+                    diff = plasmid_relative_abundance - host_mean
+                    cov = np.cov(host_ra.T)
+                    cov_inv = np.linalg.inv(cov)
+                    distance = diff[None, :].dot(cov_inv).dot(diff)
+                    self.mahalanobis_distance[i, j] = distance
 
     @staticmethod
     def normalize(ndarray):
         if len(ndarray.shape) == 2:
-            return ndarray / ndarray.sum(axis=1)[:, None]
+            return np.nan_to_num(ndarray / ndarray.sum(axis=1)[:, None])
         if len(ndarray.shape) == 1:
-            return ndarray / ndarray.sum()
+            return np.nan_to_num(ndarray / ndarray.sum())
 
     def calc_distance(self, thread=1):
         host_directory_list = os.listdir(self.host_directory_path)
@@ -254,22 +273,27 @@ class MahalanobisRelativeAbundance:
         plasmid_directory_list.sort()
 
         if thread == 1:
+            print("Counting host nucleotide and kmer frequency...")
             self.host_single_count = *map(self.count_single_nucleotide, host_directory_list),
             self.host_kmer_count = *map(self.count_kmer, host_directory_list),
 
             self.host_single_freq = *map(self.normalize, self.host_single_count),
             self.host_kmer_freq = *map(self.normalize, self.host_kmer_count),
 
+            print("Calculating host relative abundance...")
             self.host_relative_abundance = *map(self.calculate_relative_abundance, self.host_kmer_freq, self.host_single_freq),
 
+            print("Counting plasmid nucleotide and kmer frequency...")
             self.plasmid_single_count = *map(self.count_single_nucleotide, plasmid_directory_list),
             self.plasmid_kmer_count = *map(self.count_kmer, plasmid_directory_list),
 
             self.plasmid_single_freq = *map(self.normalize, self.plasmid_single_count),
             self.plasmid_kmer_freq = *map(self.normalize, self.plasmid_kmer_count),
 
+            print("Calculating plasmid relative abundance...")
             self.plasmid_relative_abundance = *map(self.calculate_relative_abundance, self.plasmid_kmer_freq, self.plasmid_single_freq),
 
+            print("Calculating Mahalanobis distance...")
             self.calculate_mahalanobis_distance()
 
             print('a')
@@ -277,24 +301,29 @@ class MahalanobisRelativeAbundance:
         elif thread != 1:
             p = Pool(thread)
 
+            print("Counting host nucleotide and kmer frequency...")
             self.host_single_count = p.map(self.count_single_nucleotide, host_directory_list)
             self.host_kmer_count = p.map(self.count_kmer, host_directory_list)
 
             self.host_single_freq = p.map(self.normalize, self.host_single_count)
             self.host_kmer_freq = p.map(self.normalize, self.host_kmer_count)
 
+            print("Calculating host relative abundance...")
             self.host_relative_abundance = p.starmap(self.calculate_relative_abundance, zip(self.host_kmer_freq, self.host_single_freq))
 
+            print("Counting plasmid nucleotide and kmer frequency...")
             self.plasmid_single_count = p.map(self.count_single_nucleotide, plasmid_directory_list)
             self.plasmid_kmer_count = p.map(self.count_kmer, plasmid_directory_list)
 
             self.plasmid_single_freq = p.map(self.normalize, self.plasmid_single_count)
             self.plasmid_kmer_freq = p.map(self.normalize, self.plasmid_kmer_count)
 
+            print("Calculating plasmid relative abundance...")
             self.plasmid_relative_abundance = p.starmap(self.calculate_relative_abundance,
                                                         zip(self.plasmid_kmer_freq, self.plasmid_single_freq))
 
-            self.calculate_mahalanobis_distance()
+            print("Calculating Mahalanobis distance...")
+            self.calculate_mahalanobis_distance(p)
 
         return self.mahalanobis_distance
 
