@@ -1,7 +1,7 @@
 import csv
 import os
 import numpy as np
-import helper
+import util
 import pickle
 import subprocess
 import argparse
@@ -81,7 +81,7 @@ def count_single_nt_folder(path, output_folder='temp_dir'):
     fa_list = [os.path.join(path, fa) for fa in fa_list]
     occ_matrix = np.zeros((len(fa_list), NT_TYPE_NUM))
     for i, fa in enumerate(fa_list):
-        occ = helper.count_nucleotide(fa)
+        occ = util.count_nucleotide(fa)
         occ_matrix[i, :] = occ
     np.save(matrix_filename, occ_matrix)
 
@@ -91,7 +91,7 @@ def count_single_nt_file(plasmid_name, output_folder='temp_dir'):
     fa = os.path.join(plasmid_dir, plasmid_name)
     if os.path.exists(nt_count_filename):
         return
-    occ = helper.count_nucleotide(fa)
+    occ = util.count_nucleotide(fa)
     np.save(nt_count_filename, occ)
 
 

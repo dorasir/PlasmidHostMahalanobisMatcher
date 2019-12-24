@@ -32,7 +32,7 @@ if __name__ == '__main__':
     thread_number = args.thread_number
     output_path = args.output_path
 
-    t = MahalanobisRelativeAbundance(subject_path, query_path, jellyfish_path='./jellyfish-linux')
+    t = MahalanobisRelativeAbundance(subject_path, query_path, jellyfish_path='./jellyfish-linux', thread=thread_number)
     distance = t.calc_distance(thread=thread_number)
     np.save(output_path, distance)
     #

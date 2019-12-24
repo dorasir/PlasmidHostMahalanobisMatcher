@@ -1,8 +1,9 @@
 import numpy as np
 import os
-import helper
+import util
 from itertools import product
 from multiprocessing import Pool
+from tools import kmer_count
 
 # np.seterr(all='raise')
 
@@ -10,7 +11,7 @@ NT_TYPE_NUM = 4
 
 
 class MahalanobisRelativeAbundance:
-    def __init__(self, host_directory_path, plasmid_directory_path, k=3, temp_directory_path='temp_dir', jellyfish_path='./jellyfish-macosx'):
+    def __init__(self, host_directory_path, plasmid_directory_path, k=3, temp_directory_path='temp_dir', jellyfish_path='./jellyfish-macosx', thread=1):
 
         self.host_directory_path = host_directory_path
         self.plasmid_directory_path = plasmid_directory_path
@@ -26,6 +27,8 @@ class MahalanobisRelativeAbundance:
         self.plasmid_single_freq = 0
         self.plasmid_kmer_freq = 0
         self.plasmid_relative_abundance = 0  # (n) dim ndarray
+
+        self.thread = thread
 
         self.jellyfish_path = jellyfish_path
 
@@ -69,7 +72,7 @@ class MahalanobisRelativeAbundance:
         fa_list = [os.path.join(path, fa) for fa in fa_list]
         occ_matrix = np.zeros((len(fa_list), NT_TYPE_NUM))
         for i, fa in enumerate(fa_list):
-            occ = helper.count_nucleotide(fa)
+            occ = util.count_nucleotide(fa)
             occ_matrix[i, :] = occ
         if save_result:
             np.save(nt_count_single_path, occ_matrix)
@@ -82,7 +85,7 @@ class MahalanobisRelativeAbundance:
         if os.path.exists(nt_count_single_path):
             occ = np.load(nt_count_single_path)
             return occ
-        occ = helper.count_nucleotide(path)
+        occ = util.count_nucleotide(path)
         if save_result:
             np.save(nt_count_single_path, occ)
         return occ
@@ -100,7 +103,7 @@ class MahalanobisRelativeAbundance:
         elif os.path.isfile(path):
             return self.count_kmer_file(path, output_directory_path=output_directory_path)
 
-    def exec_jellyfish(self, fasta_file_path, temp_directory_path='temp_dir'):
+    def exec_kmer_count(self, fasta_file_path, temp_directory_path='temp_dir'):
         """
         Runs jellyfish for a given fasta file and returns the count of each kmer
         :param fasta_file_path:
@@ -108,22 +111,9 @@ class MahalanobisRelativeAbundance:
         :param jellyfish_path:
         :return k_mer_count: a length n numpy array, where n = NT_TYPE_NUM ** k, containing the kmer count for given fasta file
         """
-        genome_name = os.path.split(os.path.split(fasta_file_path)[0])[-1]
-        hash_path = genome_name + '_' + os.path.split(fasta_file_path)[-1] + '_hash'
-        hash_path = os.path.join(temp_directory_path, hash_path)
 
-        command = '{} count -m {} -s 200M -t 8 -o {} {}'.format(self.jellyfish_path, self.k, hash_path, fasta_file_path)
-        if not os.path.exists(hash_path + '_0'):
-            os.system(command)
-        read_hash_command = '{} dump -c {}_0'.format(self.jellyfish_path, hash_path)
-        counts = os.popen(read_hash_command).read()
-        counts = counts.split('\n')[:-1]
-        k_mer_count = np.zeros(NT_TYPE_NUM ** self.k)
-        for mer_count in counts:
-            (mer, count) = mer_count.split(' ')
-            k_mer_count[self.mer_to_idx[mer]] = count
-
-        # os.remove(hash_path + '_0')
+        k_mer_count = kmer_count(fasta_file_path, self.thread, False, self.k)
+        k_mer_count = np.array(k_mer_count)
 
         return k_mer_count
 
@@ -143,7 +133,7 @@ class MahalanobisRelativeAbundance:
 
         for i, fasta_filename in enumerate(fasta_list):
             fasta_file_path = os.path.join(directory_path, fasta_filename)
-            fasta_kmer_count = self.exec_jellyfish(fasta_file_path)
+            fasta_kmer_count = self.exec_kmer_count(fasta_file_path)
             kmer_count[i, :] = fasta_kmer_count
 
         if save_result:
@@ -161,7 +151,7 @@ class MahalanobisRelativeAbundance:
             kmer_count = np.load(kmer_count_path)
             return kmer_count
 
-        kmer_count = self.exec_jellyfish(fasta_file_path)
+        kmer_count = self.exec_kmer_count(fasta_file_path)
 
         if save_result:
             np.save(kmer_count_path, kmer_count)
@@ -295,8 +285,6 @@ class MahalanobisRelativeAbundance:
 
             print("Calculating Mahalanobis distance...")
             self.calculate_mahalanobis_distance()
-
-            print('a')
 
         elif thread != 1:
             p = Pool(thread)
