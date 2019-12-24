@@ -262,6 +262,7 @@ class MahalanobisRelativeAbundance:
                                   not f.startswith('.')]
         plasmid_directory_list.sort()
 
+
         if thread == 1:
             print("Counting host nucleotide and kmer frequency...")
             self.host_single_count = *map(self.count_single_nucleotide, host_directory_list),
@@ -293,25 +294,28 @@ class MahalanobisRelativeAbundance:
             self.host_single_count = p.map(self.count_single_nucleotide, host_directory_list)
             self.host_kmer_count = p.map(self.count_kmer, host_directory_list)
 
-            self.host_single_freq = p.map(self.normalize, self.host_single_count)
-            self.host_kmer_freq = p.map(self.normalize, self.host_kmer_count)
+            self.host_single_freq = *map(self.normalize, self.host_single_count),
+            self.host_kmer_freq = *map(self.normalize, self.host_kmer_count),
 
             print("Calculating host relative abundance...")
-            self.host_relative_abundance = p.starmap(self.calculate_relative_abundance, zip(self.host_kmer_freq, self.host_single_freq))
+            # self.host_relative_abundance = p.starmap(self.calculate_relative_abundance, zip(self.host_kmer_freq, self.host_single_freq))
+            self.host_relative_abundance = *map(self.calculate_relative_abundance, self.host_kmer_freq, self.host_single_freq),
 
             print("Counting plasmid nucleotide and kmer frequency...")
             self.plasmid_single_count = p.map(self.count_single_nucleotide, plasmid_directory_list)
-            self.plasmid_kmer_count = p.map(self.count_kmer, plasmid_directory_list)
+            self.plasmid_kmer_count = *map(self.count_kmer, plasmid_directory_list),
 
-            self.plasmid_single_freq = p.map(self.normalize, self.plasmid_single_count)
-            self.plasmid_kmer_freq = p.map(self.normalize, self.plasmid_kmer_count)
+            self.plasmid_single_freq = *map(self.normalize, self.plasmid_single_count),
+            self.plasmid_kmer_freq = *map(self.normalize, self.plasmid_kmer_count),
 
             print("Calculating plasmid relative abundance...")
-            self.plasmid_relative_abundance = p.starmap(self.calculate_relative_abundance,
-                                                        zip(self.plasmid_kmer_freq, self.plasmid_single_freq))
+            # self.plasmid_relative_abundance = p.starmap(self.calculate_relative_abundance,
+            #                                             zip(self.plasmid_kmer_freq, self.plasmid_single_freq))
+            self.plasmid_relative_abundance = *map(self.calculate_relative_abundance, self.plasmid_kmer_freq, self.plasmid_single_freq),
+            p.close()
 
             print("Calculating Mahalanobis distance...")
-            self.calculate_mahalanobis_distance(p)
+            self.calculate_mahalanobis_distance()
 
         return self.mahalanobis_distance
 
