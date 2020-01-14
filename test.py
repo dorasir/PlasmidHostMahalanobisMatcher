@@ -4,15 +4,15 @@ import numpy as np
 import argparse
 from itertools import product
 
-class Add:
-    def add(self, a, b):
-        return a + b
-
-    def exec_add(self):
-        a = [1, 2, 3]
-        b = [4, 5, 6]
-        p = Pool(2)
-        print(p.starmap(self.add, product(a, b)))
+# class Add:
+#     def add(self, a, b):
+#         return a + b
+#
+#     def exec_add(self):
+#         a = [1, 2, 3]
+#         b = [4, 5, 6]
+#         p = Pool(2)
+#         print(p.starmap(self.add, product(a, b)))
 
 
 if __name__ == '__main__':
