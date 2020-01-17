@@ -114,9 +114,12 @@ for i in range(len(metadata)):
             blast_results_mat[i, idx] = series[key]
 
 
-speciesid_to_idx = list(set(metadata.Assembly_speciestaxid))
-speciesid_to_idx.sort()
-speciesid_to_idx = {s: i for i, s in enumerate(speciesid_to_idx)}
+speciesid_to_idx_l = list(set(metadata.Assembly_speciestaxid))
+speciesid_to_idx_l.sort()
+speciesid_to_idx = {s: i for i, s in enumerate(speciesid_to_idx_l)}
+idx_to_speciesid = {i: s for i, s in enumerate(speciesid_to_idx_l)}
+
+species = [speciesid_to_idx[metadata.Assembly_speciestaxid[i]] for i in range(len(metadata))]
 
 plasmid_host = np.load('plasmid_host.npy')
 true_idx = [host_to_idx_dict[metadata.Assembly_chainid[i]] for i in range(len(metadata))]
@@ -200,17 +203,66 @@ y = np.concatenate((np.ones(X_pos.shape[0]), np.zeros(X_neg.shape[0])))
 
 X = np.concatenate((X, np.ones((X.shape[0], 1))), axis=1)
 
+glm_binom = sm.GLM(y, X, family=sm.families.Binomial())
+res = glm_binom.fit()
+
 data = np.concatenate((plasmid_host[idx_test, :].flatten()[:, None], svpos[idx_test, :].flatten()[:, None], svneg[idx_test, :].flatten()[:, None], blast_results_mat[idx_test, :].flatten()[:, None]), axis=1)
 data = np.concatenate((data, np.ones((data.shape[0], 1))), axis=1)
 
 pred = res.predict(data)
 pred = pred.reshape((-1, plasmid_host.shape[1]))
 
+t = true_idx[idx_test]
+
 cnt = np.zeros(7)
 for i in range(pred.shape[0]):
     rank_to_id_1, rank_to_id_2 = taxid_to_lineage(host_to_speciesid[idx_to_host_dict[pred[i, :].argmax()]],
-                                                  host_to_speciesid[idx_to_host_dict[true_idx[i]]])
+                                                  host_to_speciesid[idx_to_host_dict[t[i]]])
     for j, rank in enumerate(desired_ranks):
         if rank_to_id_1[rank] == rank_to_id_2[rank] and rank_to_id_1[rank] is not None:
             cnt[j] += 1
 print(cnt / pred.shape[0])
+
+data = np.concatenate((plasmid_host[idx_train, :].flatten()[:, None], svpos[idx_train, :].flatten()[:, None], svneg[idx_train, :].flatten()[:, None], blast_results_mat[idx_train, :].flatten()[:, None]), axis=1)
+data = np.concatenate((data, np.ones((data.shape[0], 1))), axis=1)
+
+pred = res.predict(data)
+pred = pred.reshape((-1, plasmid_host.shape[1]))
+
+t = true_idx[idx_train]
+
+cnt = np.zeros(7)
+for i in range(pred.shape[0]):
+    rank_to_id_1, rank_to_id_2 = taxid_to_lineage(host_to_speciesid[idx_to_host_dict[pred[i, :].argmax()]],
+                                                  host_to_speciesid[idx_to_host_dict[t[i]]])
+    for j, rank in enumerate(desired_ranks):
+        if rank_to_id_1[rank] == rank_to_id_2[rank] and rank_to_id_1[rank] is not None:
+            cnt[j] += 1
+print(cnt / pred.shape[0])
+
+
+import matplotlib.pyplot as plt
+plt.boxplot([X_pos[:, 0], X_neg[:, 0]])
+plt.show()
+
+plt.boxplot([X_pos[:, 1], X_neg[:, 1]])
+plt.show()
+
+plt.boxplot([X_pos[:, 2], X_neg[:, 2]])
+plt.show()
+
+plt.boxplot([X_pos[:, 3], X_neg[:, 3]])
+plt.show()
+
+
+plt.hist([X_pos[:, 0], X_neg[:, 0]])
+plt.show()
+
+plt.hist([X_pos[:, 1], X_neg[:, 1]])
+plt.show()
+
+plt.hist([X_pos[:, 2], X_neg[:, 2]])
+plt.show()
+
+plt.hist([X_pos[:, 3], X_neg[:, 3]])
+plt.show()
