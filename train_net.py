@@ -186,8 +186,31 @@ for i in range(pred.shape[0]):
     for j, rank in enumerate(desired_ranks):
         if rank_to_id_1[rank] == rank_to_id_2[rank] and rank_to_id_1[rank] is not None:
             cnt[j] += 1
-            # if j == 1:
-            #     print(idx_to_host_dict[j])
-        # if host_to_taxid[idx_to_host[score[i, :].argmin()]] == host_to_taxid[idx_to_host[plasmids_class[i]]]:
-        #     cnt += 1
+print(cnt / pred.shape[0])
+
+idx_train, idx_test = train_test_split(np.arange(plasmid_host.shape[0]), test_size=0.2)
+
+true_idx = np.array(true_idx)
+false_idx = np.array(false_idx)
+X_pos = np.concatenate([plasmid_host[np.arange(idx_train.shape[0]), true_idx[idx_train], np.newaxis], svpos[np.arange(idx_train.shape[0]), true_idx[idx_train], np.newaxis], svneg[np.arange(idx_train.shape[0]), true_idx[idx_train], np.newaxis], blast_results_mat[np.arange(idx_train.shape[0]), true_idx[idx_train], np.newaxis]], axis=1)
+X_neg = np.concatenate([plasmid_host[np.arange(idx_train.shape[0]), false_idx[idx_train], np.newaxis], svpos[np.arange(idx_train.shape[0]), false_idx[idx_train], np.newaxis], svneg[np.arange(idx_train.shape[0]), false_idx[idx_train], np.newaxis], blast_results_mat[np.arange(idx_train.shape[0]), false_idx[idx_train], np.newaxis]], axis=1)
+X = np.concatenate((X_pos, X_neg), axis=0)
+
+y = np.concatenate((np.ones(X_pos.shape[0]), np.zeros(X_neg.shape[0])))
+
+X = np.concatenate((X, np.ones((X.shape[0], 1))), axis=1)
+
+data = np.concatenate((plasmid_host[idx_test, :].flatten()[:, None], svpos[idx_test, :].flatten()[:, None], svneg[idx_test, :].flatten()[:, None], blast_results_mat[idx_test, :].flatten()[:, None]), axis=1)
+data = np.concatenate((data, np.ones((data.shape[0], 1))), axis=1)
+
+pred = res.predict(data)
+pred = pred.reshape((-1, plasmid_host.shape[1]))
+
+cnt = np.zeros(7)
+for i in range(pred.shape[0]):
+    rank_to_id_1, rank_to_id_2 = taxid_to_lineage(host_to_speciesid[idx_to_host_dict[pred[i, :].argmax()]],
+                                                  host_to_speciesid[idx_to_host_dict[true_idx[i]]])
+    for j, rank in enumerate(desired_ranks):
+        if rank_to_id_1[rank] == rank_to_id_2[rank] and rank_to_id_1[rank] is not None:
+            cnt[j] += 1
 print(cnt / pred.shape[0])
