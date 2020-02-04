@@ -230,3 +230,4 @@ def cosine_similarity(f1, f2):
     prod = np.dot(f1,f2.T)
     return prod/(np.dot(n1,n2.T))
 
+

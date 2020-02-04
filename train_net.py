@@ -35,6 +35,8 @@ Calculate plasmid-host distance
 # dist = t.calc_distance(8)
 # np.save('plasmid_host.npy', dist)
 
+plasmid_host = np.load('plasmid_host.npy')
+
 """
 Calculate plasmid-wise distance
 """
@@ -50,7 +52,6 @@ host_list = list(set(metadata.Assembly_chainid))
 host_list.sort()
 host_to_idx_dict = {host: i for i, host in enumerate(host_list)}
 idx_to_host_dict = {i: host for i, host in enumerate(host_list)}
-
 
 interaction_table = np.zeros((len(metadata), len(set(host_list)))) #plasmid-strain indicator
 for i in range(len(metadata)):
@@ -99,6 +100,9 @@ for i in range(len(metadata)):
 # blast_results = util.blast_dir_to_db('data/plasmids_used', 'data/hosts_no_plasmid_complete.fna')
 # util.save_obj(blast_results, 'blast_results.pkl')
 
+"""
+Construct blast result matrix
+"""
 blast_results_old = util.load_obj('blast_results.pkl')
 blast_results = {}
 for key in blast_results_old:
@@ -113,12 +117,14 @@ for i in range(len(metadata)):
             idx = host_to_idx_dict[int(key[4:])]
             blast_results_mat[i, idx] = series[key]
 
-
+"""
+Construct species taxid to index mapping
+"""
 speciesid_to_idx_l = list(set(metadata.Assembly_speciestaxid))
 speciesid_to_idx_l.sort()
 speciesid_to_idx = {s: i for i, s in enumerate(speciesid_to_idx_l)}
 idx_to_speciesid = {i: s for i, s in enumerate(speciesid_to_idx_l)}
-
+"""List of index of species"""
 species = [speciesid_to_idx[metadata.Assembly_speciestaxid[i]] for i in range(len(metadata))]
 
 plasmid_host = np.load('plasmid_host.npy')
@@ -154,10 +160,11 @@ data = np.concatenate((X, y[:, None]), axis=1)
 data_train, data_test = train_test_split(data, test_size=0.1)
 glm_binom = sm.GLM(data_train[:, -1], data_train[:, :-1], family=sm.families.Binomial())
 res = glm_binom.fit(max_iter=200)
-a = res.predict(data_test[:, :-1])
-a[a>0.5]=1
-a[a<0.5]=0
-np.sum(a==data_test[:, -1]) / a.shape
+
+# a = res.predict(data_test[:, :-1])
+# a[a>0.5]=1
+# a[a<0.5]=0
+# np.sum(a==data_test[:, -1]) / a.shape
 
 data = np.concatenate((plasmid_host.flatten()[:, None], svpos.flatten()[:, None], svneg.flatten()[:, None], blast_results_mat.flatten()[:, None]), axis=1)
 data = np.concatenate((data, np.ones((data.shape[0], 1))), axis=1)
@@ -169,23 +176,32 @@ pred = pred.reshape(plasmid_host.shape)
 from ete3 import NCBITaxa
 
 desired_ranks = ['phylum', 'class', 'order', 'family', 'genus', 'species']
-def taxid_to_lineage(taxid_1, taxid_2):
+def taxid_to_lineage(taxid_1):
     ncbi = NCBITaxa()
     lineage_1 = ncbi.get_lineage(taxid_1)
-    lineage_2 = ncbi.get_lineage(taxid_2)
     rank_to_id_1 = {rank: id for (id, rank) in ncbi.get_rank(lineage_1).items()}
-    rank_to_id_2 = {rank: id for (id, rank) in ncbi.get_rank(lineage_2).items()}
-    for desired_rank in desired_ranks:
-        if desired_rank in rank_to_id_1.keys():
-            pass
     rank_to_id_1 = {desired_rank: (rank_to_id_1[desired_rank] if desired_rank in rank_to_id_1.keys() else None) for desired_rank in desired_ranks}
-    rank_to_id_2 = {desired_rank: (rank_to_id_2[desired_rank] if desired_rank in rank_to_id_2.keys() else None) for desired_rank in desired_ranks}
-    return rank_to_id_1, rank_to_id_2
+    return rank_to_id_1
+
+
+def taxonomic_accuracy(prediction, target, use_max=False):
+    cnt = np.zeros(7)
+    for i in range(prediction.shape[0]):
+        if max:
+            rank_to_id_1 = taxid_to_lineage(host_to_speciesid[idx_to_host_dict[prediction[i, :].argmax()]])
+        else:
+            rank_to_id_1 = taxid_to_lineage(host_to_speciesid[idx_to_host_dict[prediction[i, :].argmin()]])
+        rank_to_id_2 = taxid_to_lineage(host_to_speciesid[idx_to_host_dict[target[i]]])
+        for j, rank in enumerate(desired_ranks):
+            if rank_to_id_1[rank] == rank_to_id_2[rank] and rank_to_id_1[rank] is not None:
+                cnt[j] += 1
+    print(cnt / pred.shape[0])
+
 
 cnt = np.zeros(7)
 for i in range(pred.shape[0]):
-    rank_to_id_1, rank_to_id_2 = taxid_to_lineage(host_to_speciesid[idx_to_host_dict[pred[i, :].argmin()]],
-                                                  host_to_speciesid[idx_to_host_dict[true_idx[i]]])
+    rank_to_id_1 = taxid_to_lineage(host_to_speciesid[idx_to_host_dict[pred[i, :].argmin()]])
+    rank_to_id_2 = taxid_to_lineage(host_to_speciesid[idx_to_host_dict[true_idx[i]]])
     for j, rank in enumerate(desired_ranks):
         if rank_to_id_1[rank] == rank_to_id_2[rank] and rank_to_id_1[rank] is not None:
             cnt[j] += 1
