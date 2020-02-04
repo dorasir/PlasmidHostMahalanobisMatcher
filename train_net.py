@@ -127,6 +127,7 @@ idx_to_speciesid = {i: s for i, s in enumerate(speciesid_to_idx_l)}
 """List of index of species"""
 species = [speciesid_to_idx[metadata.Assembly_speciestaxid[i]] for i in range(len(metadata))]
 
+"""Construct index of positive set and negative set for each plasmid"""
 plasmid_host = np.load('plasmid_host.npy')
 true_idx = [host_to_idx_dict[metadata.Assembly_chainid[i]] for i in range(len(metadata))]
 false_idx = []
@@ -136,12 +137,15 @@ for i in range(len(metadata)):
         idx = np.random.randint(plasmid_host.shape[1])
     false_idx.append(idx)
 
+"""calculate svpos and svneg"""
 plasmid_plasmid = np.load('plasmid_plasmid.npy')
 svpos = plasmid_plasmid.dot(interaction_table) / interaction_table.sum(axis=0)
 svneg = plasmid_plasmid.dot((1 - interaction_table)) / (1 - interaction_table).sum(axis=0)
 
+"""Normalize plasmid-host distance"""
 plasmid_host = (plasmid_host - plasmid_host.min(axis=0)) / (plasmid_host.max(axis=0) - plasmid_host.min(axis=0))
 
+"""Construct positive and negative dataset"""
 X_pos = np.concatenate([plasmid_host[np.arange(plasmid_host.shape[0]), true_idx, np.newaxis], svpos[np.arange(svpos.shape[0]), true_idx, np.newaxis], svneg[np.arange(svpos.shape[0]), true_idx, np.newaxis], blast_results_mat[np.arange(blast_results_mat.shape[0]), true_idx, np.newaxis]], axis=1)
 X_neg = np.concatenate([plasmid_host[np.arange(plasmid_host.shape[0]), false_idx, np.newaxis], svpos[np.arange(svpos.shape[0]), false_idx, np.newaxis], svneg[np.arange(svpos.shape[0]), false_idx, np.newaxis], blast_results_mat[np.arange(blast_results_mat.shape[0]), false_idx, np.newaxis]], axis=1)
 X = np.concatenate((X_pos, X_neg), axis=0)
@@ -150,12 +154,13 @@ y = np.concatenate((np.ones(X_pos.shape[0]), np.zeros(X_neg.shape[0])))
 
 X = np.concatenate((X, np.ones((X.shape[0], 1))), axis=1)
 
+"""Train generalized linear model to predict likelihood of interaction"""
 import statsmodels.api as sm
 glm_binom = sm.GLM(y, X, family=sm.families.Binomial())
 res = glm_binom.fit()
 
+"""Split """
 from sklearn.model_selection import train_test_split
-
 data = np.concatenate((X, y[:, None]), axis=1)
 data_train, data_test = train_test_split(data, test_size=0.1)
 glm_binom = sm.GLM(data_train[:, -1], data_train[:, :-1], family=sm.families.Binomial())
@@ -176,12 +181,12 @@ pred = pred.reshape(plasmid_host.shape)
 from ete3 import NCBITaxa
 
 desired_ranks = ['phylum', 'class', 'order', 'family', 'genus', 'species']
-def taxid_to_lineage(taxid_1):
+def taxid_to_lineage(taxid):
     ncbi = NCBITaxa()
-    lineage_1 = ncbi.get_lineage(taxid_1)
-    rank_to_id_1 = {rank: id for (id, rank) in ncbi.get_rank(lineage_1).items()}
-    rank_to_id_1 = {desired_rank: (rank_to_id_1[desired_rank] if desired_rank in rank_to_id_1.keys() else None) for desired_rank in desired_ranks}
-    return rank_to_id_1
+    lineage = ncbi.get_lineage(taxid)
+    rank_to_id = {rank: id for (id, rank) in ncbi.get_rank(lineage).items()}
+    rank_to_id = {desired_rank: (rank_to_id[desired_rank] if desired_rank in rank_to_id.keys() else None) for desired_rank in desired_ranks}
+    return rank_to_id
 
 
 def taxonomic_accuracy(prediction, target, use_max=False):
