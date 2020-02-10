@@ -1,10 +1,10 @@
-from MahalanobisRelativeAbundance import MahalanobisRelativeAbundance
+# from MahalanobisRelativeAbundance import MahalanobisRelativeAbundance
 import numpy as np
 import pandas as pd
 import os
 import shutil
 import util
-from Bio.Blast.Applications import NcbiblastnCommandline
+# from Bio.Blast.Applications import NcbiblastnCommandline
 
 
 from ete3 import NCBITaxa
@@ -25,7 +25,7 @@ def taxid_to_lineage(taxid):
 def taxonomic_accuracy(prediction, target, use_max=False):
     cnt = np.zeros(7)
     for i in range(prediction.shape[0]):
-        if max:
+        if use_max:
             rank_to_id_1 = taxid_to_lineage(host_to_speciesid[idx_to_host_dict[prediction[i, :].argmax()]])
         else:
             rank_to_id_1 = taxid_to_lineage(host_to_speciesid[idx_to_host_dict[prediction[i, :].argmin()]])
@@ -33,8 +33,10 @@ def taxonomic_accuracy(prediction, target, use_max=False):
         for j, rank in enumerate(desired_ranks):
             if rank_to_id_1[rank] == rank_to_id_2[rank] and rank_to_id_1[rank] is not None:
                 cnt[j] += 1
-    if max:
+    if use_max:
         cnt[6] = np.sum(prediction.argmax(axis=1) == target)
+    else:
+        cnt[6] = np.sum(prediction.argmin(axis=1) == target)
     acc = cnt / pred.shape[0]
     return acc
 
@@ -126,6 +128,7 @@ for i in range(len(metadata)):
 
 # seqacc_to_hostacc_dict = util.load_obj('seqacc_to_hostacc.pkl')
 
+"""Calculate blast"""
 # blast_results = util.blast_dir_to_db('data/plasmids_used', 'data/hosts_no_plasmid_complete.fna')
 # util.save_obj(blast_results, 'blast_results.pkl')
 
@@ -230,7 +233,9 @@ print(acc)
 #             cnt[j] += 1
 # print(cnt / pred.shape[0])
 
-for i in range(10):
+net_acc = []
+mah_acc = []
+for i in range(100):
     idx_train, idx_test = train_test_split(np.arange(plasmid_host.shape[0]), test_size=0.2)
 
     true_idx = np.array(true_idx)
@@ -254,8 +259,15 @@ for i in range(10):
 
     t = true_idx[idx_test]
 
-    acc = taxonomic_accuracy(pred, t)
+    print(i)
+    acc = taxonomic_accuracy(pred, t, use_max=True)
+    net_acc.append(acc)
     print(acc)
+    acc = taxonomic_accuracy(plasmid_host[idx_test, :], t)
+    mah_acc.append(acc)
+    print(acc)
+net_acc = np.vstack(net_acc)
+mah_acc = np.vstack(mah_acc)
 
 from sklearn.neural_network import MLPRegressor
 for i in range(10):
@@ -271,7 +283,8 @@ for i in range(10):
 
     X = np.concatenate((X, np.ones((X.shape[0], 1))), axis=1)
 
-    model = MLPRegressor(hidden_layer_sizes=(50, 10,), activation='logistic', max_iter=1000, solver='lbfgs')
+    # model = MLPRegressor(hidden_layer_sizes=(50, 10,), activation='logistic', max_iter=1000, solver='lbfgs')
+    model = MLPRegressor(hidden_layer_sizes=(50, 10,), activation='logistic', max_iter=1000,)
     model.fit(X, y)
 
     data = np.concatenate((plasmid_host[idx_test, :].flatten()[:, None], svpos[idx_test, :].flatten()[:, None], svneg[idx_test, :].flatten()[:, None], blast_results_mat[idx_test, :].flatten()[:, None]), axis=1)
@@ -282,7 +295,10 @@ for i in range(10):
 
     t = true_idx[idx_test]
 
-    acc = taxonomic_accuracy(pred, t)
+    print(i)
+    acc = taxonomic_accuracy(pred, t, use_max=True)
+    print(acc)
+    acc = taxonomic_accuracy(plasmid_host[idx_test, :], t)
     print(acc)
 
 # cnt = np.zeros(7)
