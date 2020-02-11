@@ -233,8 +233,12 @@ print(acc)
 #             cnt[j] += 1
 # print(cnt / pred.shape[0])
 
+from sklearn.neural_network import MLPRegressor
+from sklearn.svm import SVC, SVR, NuSVR, LinearSVR
+
 net_acc = []
 mah_acc = []
+nn_acc = []
 for i in range(100):
     idx_train, idx_test = train_test_split(np.arange(plasmid_host.shape[0]), test_size=0.2)
 
@@ -263,13 +267,78 @@ for i in range(100):
     acc = taxonomic_accuracy(pred, t, use_max=True)
     net_acc.append(acc)
     print(acc)
+
+    model = MLPRegressor(hidden_layer_sizes=(50, 10,), activation='relu', max_iter=1000, tol=1e-10)
+    model.fit(X, y)
+
+    pred = model.predict(data)
+    pred = pred.reshape((-1, plasmid_host.shape[1]))
+    t = true_idx[idx_test]
+
+    acc = taxonomic_accuracy(pred, t, use_max=True)
+    nn_acc.append(acc)
+    print(acc)
+
     acc = taxonomic_accuracy(plasmid_host[idx_test, :], t)
     mah_acc.append(acc)
     print(acc)
 net_acc = np.vstack(net_acc)
+nn_acc = np.vstack(nn_acc)
 mah_acc = np.vstack(mah_acc)
 
-from sklearn.neural_network import MLPRegressor
+net_acc = []
+mah_acc = []
+nn_acc = []
+for i in range(100):
+    idx_train, idx_test = train_test_split(np.arange(plasmid_host.shape[0]), test_size=0.2)
+
+    true_idx = np.array(true_idx)
+    false_idx = np.array(false_idx)
+    # X_pos = np.concatenate([plasmid_host[np.arange(idx_train.shape[0]), true_idx[idx_train], np.newaxis], svpos[np.arange(idx_train.shape[0]), true_idx[idx_train], np.newaxis], svneg[np.arange(idx_train.shape[0]), true_idx[idx_train], np.newaxis], blast_results_mat[np.arange(idx_train.shape[0]), true_idx[idx_train], np.newaxis]], axis=1)
+    X_pos = plasmid_host[np.arange(idx_train.shape[0]), true_idx[idx_train], np.newaxis]
+    X_neg = plasmid_host[np.arange(idx_train.shape[0]), false_idx[idx_train], np.newaxis]
+    # X_neg = np.concatenate([plasmid_host[np.arange(idx_train.shape[0]), false_idx[idx_train], np.newaxis], svpos[np.arange(idx_train.shape[0]), false_idx[idx_train], np.newaxis], svneg[np.arange(idx_train.shape[0]), false_idx[idx_train], np.newaxis], blast_results_mat[np.arange(idx_train.shape[0]), false_idx[idx_train], np.newaxis]], axis=1)
+    X = np.concatenate((X_pos, X_neg), axis=0)
+
+    y = np.concatenate((np.ones(X_pos.shape[0]), np.zeros(X_neg.shape[0])))
+
+    X = np.concatenate((X, np.ones((X.shape[0], 1))), axis=1)
+
+    glm_binom = sm.GLM(y, X, family=sm.families.Binomial())
+    res = glm_binom.fit()
+
+    # data = np.concatenate((plasmid_host[idx_test, :].flatten()[:, None]), axis=1)
+    data = plasmid_host[idx_test, :].flatten()[:, None]
+    data = np.concatenate((data, np.ones((data.shape[0], 1))), axis=1)
+
+    pred = res.predict(data)
+    pred = pred.reshape((-1, plasmid_host.shape[1]))
+
+    t = true_idx[idx_test]
+
+    print(i)
+    acc = taxonomic_accuracy(pred, t, use_max=True)
+    net_acc.append(acc)
+    print(acc)
+
+    model = MLPRegressor(hidden_layer_sizes=(50, 10,), activation='relu', max_iter=1000, tol=1e-10)
+    model.fit(X, y)
+
+    pred = model.predict(data)
+    pred = pred.reshape((-1, plasmid_host.shape[1]))
+    t = true_idx[idx_test]
+
+    acc = taxonomic_accuracy(pred, t, use_max=True)
+    nn_acc.append(acc)
+    print(acc)
+
+    acc = taxonomic_accuracy(plasmid_host[idx_test, :], t)
+    mah_acc.append(acc)
+    print(acc)
+net_acc = np.vstack(net_acc)
+nn_acc = np.vstack(nn_acc)
+mah_acc = np.vstack(mah_acc)
+
 for i in range(10):
     idx_train, idx_test = train_test_split(np.arange(plasmid_host.shape[0]), test_size=0.2)
 
@@ -291,6 +360,36 @@ for i in range(10):
     data = np.concatenate((data, np.ones((data.shape[0], 1))), axis=1)
 
     pred = model.predict(data)
+    pred = pred.reshape((-1, plasmid_host.shape[1]))
+
+    t = true_idx[idx_test]
+
+    print(i)
+    acc = taxonomic_accuracy(pred, t, use_max=True)
+    print(acc)
+    acc = taxonomic_accuracy(plasmid_host[idx_test, :], t)
+    print(acc)
+
+for i in range(10):
+    idx_train, idx_test = train_test_split(np.arange(plasmid_host.shape[0]), test_size=0.2)
+
+    true_idx = np.array(true_idx)
+    false_idx = np.array(false_idx)
+    X_pos = np.concatenate([plasmid_host[np.arange(idx_train.shape[0]), true_idx[idx_train], np.newaxis], svpos[np.arange(idx_train.shape[0]), true_idx[idx_train], np.newaxis], svneg[np.arange(idx_train.shape[0]), true_idx[idx_train], np.newaxis], blast_results_mat[np.arange(idx_train.shape[0]), true_idx[idx_train], np.newaxis]], axis=1)
+    X_neg = np.concatenate([plasmid_host[np.arange(idx_train.shape[0]), false_idx[idx_train], np.newaxis], svpos[np.arange(idx_train.shape[0]), false_idx[idx_train], np.newaxis], svneg[np.arange(idx_train.shape[0]), false_idx[idx_train], np.newaxis], blast_results_mat[np.arange(idx_train.shape[0]), false_idx[idx_train], np.newaxis]], axis=1)
+    X = np.concatenate((X_pos, X_neg), axis=0)
+
+    y = np.concatenate((np.ones(X_pos.shape[0]), np.zeros(X_neg.shape[0])))
+
+    X = np.concatenate((X, np.ones((X.shape[0], 1))), axis=1)
+
+    clf = SVR(kernel='poly', degree=4)
+    clf.fit(X, y)
+
+    data = np.concatenate((plasmid_host[idx_test, :].flatten()[:, None], svpos[idx_test, :].flatten()[:, None], svneg[idx_test, :].flatten()[:, None], blast_results_mat[idx_test, :].flatten()[:, None]), axis=1)
+    data = np.concatenate((data, np.ones((data.shape[0], 1))), axis=1)
+
+    pred = clf.predict(data)
     pred = pred.reshape((-1, plasmid_host.shape[1]))
 
     t = true_idx[idx_test]
