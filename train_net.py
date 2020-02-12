@@ -485,28 +485,28 @@ for i in range(10):
 # print(cnt / pred.shape[0])
 
 
-import matplotlib.pyplot as plt
-plt.boxplot([X_pos[:, 0], X_neg[:, 0]])
-plt.show()
+# import matplotlib.pyplot as plt
+# plt.boxplot([X_pos[:, 0], X_neg[:, 0]])
+# plt.show()
 
-plt.boxplot([X_pos[:, 1], X_neg[:, 1]])
-plt.show()
+# plt.boxplot([X_pos[:, 1], X_neg[:, 1]])
+# plt.show()
 
-plt.boxplot([X_pos[:, 2], X_neg[:, 2]])
-plt.show()
+# plt.boxplot([X_pos[:, 2], X_neg[:, 2]])
+# plt.show()
 
-plt.boxplot([X_pos[:, 3], X_neg[:, 3]])
-plt.show()
+# plt.boxplot([X_pos[:, 3], X_neg[:, 3]])
+# plt.show()
 
 
-plt.hist([X_pos[:, 0], X_neg[:, 0]])
-plt.show()
+# plt.hist([X_pos[:, 0], X_neg[:, 0]])
+# plt.show()
 
-plt.hist([X_pos[:, 1], X_neg[:, 1]])
-plt.show()
+# plt.hist([X_pos[:, 1], X_neg[:, 1]])
+# plt.show()
 
-plt.hist([X_pos[:, 2], X_neg[:, 2]])
-plt.show()
+# plt.hist([X_pos[:, 2], X_neg[:, 2]])
+# plt.show()
 
-plt.hist([X_pos[:, 3], X_neg[:, 3]])
-plt.show()
+# plt.hist([X_pos[:, 3], X_neg[:, 3]])
+# plt.show()
