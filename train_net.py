@@ -6,6 +6,8 @@ import shutil
 import util
 # from Bio.Blast.Applications import NcbiblastnCommandline
 
+import warnings
+warnings.filterwarnings("ignore")
 
 from ete3 import NCBITaxa
 desired_ranks = ['phylum', 'class', 'order', 'family', 'genus', 'species']
