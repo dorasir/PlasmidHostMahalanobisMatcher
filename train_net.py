@@ -6,6 +6,9 @@ import shutil
 import util
 # from Bio.Blast.Applications import NcbiblastnCommandline
 
+import warnings
+warnings.filterwarnings("ignore")
+
 
 from ete3 import NCBITaxa
 desired_ranks = ['phylum', 'class', 'order', 'family', 'genus', 'species']
@@ -163,17 +166,17 @@ species = [speciesid_to_idx[metadata.Assembly_speciestaxid[i]] for i in range(le
 plasmid_host = np.load('plasmid_host.npy')
 taxonomic_level = 'phylum'
 true_idx = [host_to_idx_dict[metadata.Assembly_chainid[i]] for i in range(len(metadata))]
-false_idx = []
-true_family = [(taxid_to_lineage(host_to_speciesid[idx_to_host_dict[idx]])[taxonomic_level] if taxonomic_level in taxid_to_lineage(host_to_speciesid[idx_to_host_dict[idx]]) else None) for idx in true_idx]
-for i in range(len(metadata)):
-    idx = np.random.randint(plasmid_host.shape[1])
-    false_lineage = taxid_to_lineage(host_to_speciesid[idx_to_host_dict[idx]])
-    false_family = false_lineage[taxonomic_level] if taxonomic_level in false_lineage else None
-    while idx == true_idx[i] and false_family == true_family[i]:
-        idx = np.random.randint(plasmid_host.shape[1])
-        false_lineage = taxid_to_lineage(host_to_speciesid[idx_to_host_dict[idx]])
-        false_family = false_lineage[taxonomic_level] if taxonomic_level in false_lineage else None
-    false_idx.append(idx)
+# false_idx = []
+# true_family = [(taxid_to_lineage(host_to_speciesid[idx_to_host_dict[idx]])[taxonomic_level] if taxonomic_level in taxid_to_lineage(host_to_speciesid[idx_to_host_dict[idx]]) else None) for idx in true_idx]
+# for i in range(len(metadata)):
+#     idx = np.random.randint(plasmid_host.shape[1])
+#     false_lineage = taxid_to_lineage(host_to_speciesid[idx_to_host_dict[idx]])
+#     false_family = false_lineage[taxonomic_level] if taxonomic_level in false_lineage else None
+#     while idx == true_idx[i] and false_family == true_family[i]:
+#         idx = np.random.randint(plasmid_host.shape[1])
+#         false_lineage = taxid_to_lineage(host_to_speciesid[idx_to_host_dict[idx]])
+#         false_family = false_lineage[taxonomic_level] if taxonomic_level in false_lineage else None
+#     false_idx.append(idx)
 
 """calculate svpos and svneg"""
 plasmid_plasmid = np.load('plasmid_plasmid.npy')
@@ -233,8 +236,8 @@ from sklearn.model_selection import train_test_split
 #             cnt[j] += 1
 # print(cnt / pred.shape[0])
 
-# from sklearn.neural_network import MLPRegressor
-# from sklearn.svm import SVC, SVR, NuSVR, LinearSVR
+from sklearn.neural_network import MLPRegressor
+from sklearn.svm import SVC, SVR, NuSVR, LinearSVR
 #
 # net_acc = []
 # mah_acc = []
@@ -401,6 +404,8 @@ from sklearn.model_selection import train_test_split
 #     print(acc)
 
 host_similarity = np.zeros((len(host_list), len(host_list)))
+# for i in range(len(host_list)):
+#     host_similarity[i, i] = 1
 host_lineage = {}
 for i in range(len(host_list)):
     similarity = []
@@ -415,98 +420,93 @@ for i in range(len(host_list)):
         else:
             lineage_2 = taxid_to_lineage(host_to_speciesid[host_list[j]])
             host_lineage[j] = lineage_2
+        # rank = 'species'
+        # if rank in lineage_1 and rank in lineage_2 and lineage_1[rank] == lineage_2[rank]:
+        #     host_similarity[i, j] = 1
         # Compare lineage of two hosts
         for k in range(len(desired_ranks)-1, -1, -1):
             if desired_ranks[k] in lineage_1 and desired_ranks[k] in lineage_2:
                 if lineage_1[desired_ranks[k]] == lineage_2[desired_ranks[k]]:
                     # similarity.append(9 * (10 ** (k-6)))
-                    host_similarity[i, j] = 9 * (10 ** (k-6))
+                    host_similarity[i, j] = 1 * (10 ** (k-6))
                     break
-
+import gc
+from sklearn.linear_model import LinearRegression
+net_acc = []
+mah_acc = []
 for i in range(10):
+    gc.collect()
     idx_train, idx_test = train_test_split(np.arange(plasmid_host.shape[0]), test_size=0.2)
 
     true_idx = np.array(true_idx)
-    false_idx = np.array(false_idx)
-    # X_pos = np.concatenate([plasmid_host[np.arange(idx_train.shape[0]), true_idx[idx_train], np.newaxis], svpos[np.arange(idx_train.shape[0]), true_idx[idx_train], np.newaxis], svneg[np.arange(idx_train.shape[0]), true_idx[idx_train], np.newaxis], blast_results_mat[np.arange(idx_train.shape[0]), true_idx[idx_train], np.newaxis]], axis=1)
-    # X_neg = np.concatenate([plasmid_host[np.arange(idx_train.shape[0]), false_idx[idx_train], np.newaxis], svpos[np.arange(idx_train.shape[0]), false_idx[idx_train], np.newaxis], svneg[np.arange(idx_train.shape[0]), false_idx[idx_train], np.newaxis], blast_results_mat[np.arange(idx_train.shape[0]), false_idx[idx_train], np.newaxis]], axis=1)
-    # X = np.concatenate((X_pos, X_neg), axis=0)
-    #
-    # y = np.concatenate((np.ones(X_pos.shape[0]), np.zeros(X_neg.shape[0])))
-    #
-    # X = np.concatenate((X, np.ones((X.shape[0], 1))), axis=1)
 
+    # idx_train = idx_train[:500]
     data_train = np.concatenate((plasmid_host[idx_train, :].flatten()[:, None], svpos[idx_train, :].flatten()[:, None], blast_results_mat[idx_train, :].flatten()[:, None]), axis=1)
     data_train = np.concatenate((data_train, np.ones((data_train.shape[0], 1))), axis=1)
     y = [host_similarity[int(true_idx[i])] for i in true_idx[idx_train]]
     y = np.vstack(y).flatten()
 
     glm_binom = sm.GLM(y, data_train, family=sm.families.Binomial())
-    res = glm_binom.fit()
+    res = glm_binom.fit(method='lbfgs', tol=1e-8, maxiter=500)
+    # model = MLPRegressor(hidden_layer_sizes=(50, 10,), activation='relu', max_iter=1000, tol=1e-10)
+    # model = MLPRegressor()
+    # model.fit(data_train, y)
+    # clf = LinearSVR()
+    # clf.fit(data_train, y)
+    # clf = LogisticRegression()
+    # clf.fit(data_train, y)
+    # reg = LinearRegression()
+    # reg.fit(data_train, y)
 
     data = np.concatenate((plasmid_host[idx_test, :].flatten()[:, None], svpos[idx_test, :].flatten()[:, None], blast_results_mat[idx_test, :].flatten()[:, None]), axis=1)
     data = np.concatenate((data, np.ones((data.shape[0], 1))), axis=1)
 
     pred = res.predict(data)
     pred = pred.reshape((-1, plasmid_host.shape[1]))
+    # pred = model.predict(data)
+    # pred = pred.reshape((-1, plasmid_host.shape[1]))
+    # pred = clf.predict(data)
+    # pred = pred.reshape((-1, plasmid_host.shape[1]))
+    # pred = clf.predict_proba(data)
+    # pred = pred.reshape((-1, plasmid_host.shape[1]))
+    # pred = reg.predict(data)
+    # pred = pred.reshape((-1, plasmid_host.shape[1]))
 
     t = true_idx[idx_test]
 
     print(i)
     acc = taxonomic_accuracy(pred, t, use_max=True)
+    net_acc.append(acc)
     print(acc)
     acc = taxonomic_accuracy(plasmid_host[idx_test, :], t)
+    mah_acc.append(acc)
     print(acc)
+net_acc = np.vstack(net_acc)
+mah_acc = np.vstack(mah_acc)
 
-# cnt = np.zeros(7)
-# for i in range(pred.shape[0]):
-#     rank_to_id_1, rank_to_id_2 = taxid_to_lineage(host_to_speciesid[idx_to_host_dict[pred[i, :].argmax()]],
-#                                                   host_to_speciesid[idx_to_host_dict[t[i]]])
-#     for j, rank in enumerate(desired_ranks):
-#         if rank_to_id_1[rank] == rank_to_id_2[rank] and rank_to_id_1[rank] is not None:
-#             cnt[j] += 1
-# print(cnt / pred.shape[0])
-
-# data = np.concatenate((plasmid_host[idx_train, :].flatten()[:, None], svpos[idx_train, :].flatten()[:, None], svneg[idx_train, :].flatten()[:, None], blast_results_mat[idx_train, :].flatten()[:, None]), axis=1)
-# data = np.concatenate((data, np.ones((data.shape[0], 1))), axis=1)
 #
-# pred = res.predict(data)
-# pred = pred.reshape((-1, plasmid_host.shape[1]))
+# import matplotlib.pyplot as plt
+# plt.boxplot([X_pos[:, 0], X_neg[:, 0]])
+# plt.show()
 #
-# t = true_idx[idx_train]
+# plt.boxplot([X_pos[:, 1], X_neg[:, 1]])
+# plt.show()
 #
-# cnt = np.zeros(7)
-# for i in range(pred.shape[0]):
-#     rank_to_id_1, rank_to_id_2 = taxid_to_lineage(host_to_speciesid[idx_to_host_dict[pred[i, :].argmax()]],
-#                                                   host_to_speciesid[idx_to_host_dict[t[i]]])
-#     for j, rank in enumerate(desired_ranks):
-#         if rank_to_id_1[rank] == rank_to_id_2[rank] and rank_to_id_1[rank] is not None:
-#             cnt[j] += 1
-# print(cnt / pred.shape[0])
-
-
-import matplotlib.pyplot as plt
-plt.boxplot([X_pos[:, 0], X_neg[:, 0]])
-plt.show()
-
-plt.boxplot([X_pos[:, 1], X_neg[:, 1]])
-plt.show()
-
-plt.boxplot([X_pos[:, 2], X_neg[:, 2]])
-plt.show()
-
-plt.boxplot([X_pos[:, 3], X_neg[:, 3]])
-plt.show()
-
-
-plt.hist([X_pos[:, 0], X_neg[:, 0]])
-plt.show()
-
-plt.hist([X_pos[:, 1], X_neg[:, 1]])
-plt.show()
-
-plt.hist([X_pos[:, 2], X_neg[:, 2]])
-plt.show()
-
-plt.hist([X_pos[:, 3], X_neg[:, 3]])
-plt.show()
+# plt.boxplot([X_pos[:, 2], X_neg[:, 2]])
+# plt.show()
+#
+# plt.boxplot([X_pos[:, 3], X_neg[:, 3]])
+# plt.show()
+#
+#
+# plt.hist([X_pos[:, 0], X_neg[:, 0]])
+# plt.show()
+#
+# plt.hist([X_pos[:, 1], X_neg[:, 1]])
+# plt.show()
+#
+# plt.hist([X_pos[:, 2], X_neg[:, 2]])
+# plt.show()
+#
+# plt.hist([X_pos[:, 3], X_neg[:, 3]])
+# plt.show()
