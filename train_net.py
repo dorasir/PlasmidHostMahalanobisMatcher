@@ -1,4 +1,4 @@
-# from MahalanobisRelativeAbundance import MahalanobisRelativeAbundance
+from MahalanobisRelativeAbundance import MahalanobisRelativeAbundance
 import numpy as np
 import pandas as pd
 import os
@@ -8,11 +8,14 @@ import util
 from sklearn.neural_network import MLPClassifier
 
 import warnings
+
 warnings.filterwarnings("ignore")
 
-
 from ete3 import NCBITaxa
+
 desired_ranks = ['phylum', 'class', 'order', 'family', 'genus', 'species']
+
+
 def taxid_to_lineage(taxid):
     """
     Function for retrieving the taxonomic rank of given taxid
@@ -22,7 +25,8 @@ def taxid_to_lineage(taxid):
     ncbi = NCBITaxa()
     lineage = ncbi.get_lineage(taxid)
     rank_to_id = {rank: id for (id, rank) in ncbi.get_rank(lineage).items()}
-    rank_to_id = {desired_rank: (rank_to_id[desired_rank] if desired_rank in rank_to_id.keys() else None) for desired_rank in desired_ranks}
+    rank_to_id = {desired_rank: (rank_to_id[desired_rank] if desired_rank in rank_to_id.keys() else None) for
+                  desired_rank in desired_ranks}
     return rank_to_id
 
 
@@ -41,8 +45,9 @@ def taxonomic_accuracy(prediction, target, use_max=False):
         cnt[6] = np.sum(prediction.argmax(axis=1) == target)
     else:
         cnt[6] = np.sum(prediction.argmin(axis=1) == target)
-    acc = cnt / pred.shape[0]
+    acc = cnt / prediction.shape[0]
     return acc
+
 
 metadata = pd.read_csv('metadata.csv')
 metadata = metadata.dropna()
@@ -67,18 +72,24 @@ metadata.reset_index(drop=True, inplace=True)
 Calculate plasmid-host distance
 """
 # t = MahalanobisRelativeAbundance('data/hosts', 'data/plasmids_used', temp_directory_path='temp_dir/plasmid_host')
+# # t = MahalanobisRelativeAbundance('data/hosts', 'plsdb', temp_directory_path='temp_dir/plasmid_host')
 # dist = t.calc_distance(8)
+# np.save('plasmid_host_plsdb.npy', dist)
 # np.save('plasmid_host.npy', dist)
 
-# plasmid_host = np.load('plasmid_host.npy')
-plasmid_host = np.load('d2star.npy')
+plasmid_host = np.load('plasmid_host.npy')
+# plasmid_host = np.load('d2star.npy')
+# plasmid_host = dist
 """
 Calculate plasmid-wise distance
 """
 # dist = np.load('plasmid_host.npy')
-dist = plasmid_host
-plasmid_plasmid = util.cosine_similarity(dist, dist)
+# dist = plasmid_host
+# plasmid_plasmid = util.cosine_similarity(dist, dist)
 # np.save('plasmid_plasmid.npy', plasmid_plasmid)
+
+t = MahalanobisRelativeAbundance('data/plasmids_used', 'data/plasmids_used',
+                                 temp_directory_path='temp_dir/plasmid_host')
 
 """
 Construct plasmid interaction table
@@ -89,10 +100,9 @@ host_list.sort()
 host_to_idx_dict = {host: i for i, host in enumerate(host_list)}
 idx_to_host_dict = {i: host for i, host in enumerate(host_list)}
 
-interaction_table = np.zeros((len(metadata), len(set(host_list)))) #plasmid-strain indicator
+interaction_table = np.zeros((len(metadata), len(set(host_list))))  # plasmid-strain indicator
 for i in range(len(metadata)):
     interaction_table[i, host_to_idx_dict[metadata.Assembly_chainid[i]]] = 1
-
 
 """
 Construct plasmid interaction table based on species
@@ -106,12 +116,10 @@ for i in range(len(metadata)):
     else:
         speciesid_to_host[metadata.Assembly_speciestaxid[i]].add(metadata.Assembly_chainid[i])
 
-interaction_table_species = np.zeros((len(metadata), len(set(host_list)))) #plasmid-strain indicator
+interaction_table_species = np.zeros((len(metadata), len(set(host_list))))  # plasmid-strain indicator
 for i in range(len(metadata)):
     for strain in speciesid_to_host[metadata.Assembly_speciestaxid[i]]:
         interaction_table_species[i, host_to_idx_dict[strain]] = 1
-
-
 
 # def seqacc_to_hostacc(host_dir):
 #     seqacc_to_hostacc_dict = {}
@@ -137,10 +145,14 @@ for i in range(len(metadata)):
 # blast_results = util.blast_dir_to_db('data/plasmids_used', 'data/hosts_no_plasmid_complete.fna')
 # util.save_obj(blast_results, 'blast_results.pkl')
 
+# blast_results = util.blast_dir_to_db('plsdb', 'data/hosts_no_plasmid_complete.fna')
+# util.save_obj(blast_results, 'blast_results_plsdb.pkl')
+
 """
 Construct blast result matrix
 """
 blast_results_old = util.load_obj('blast_results.pkl')
+# blast_results_old = util.load_obj('blast_results_plsdb.pkl')
 blast_results = {}
 for key in blast_results_old:
     blast_results[key.split('.')[0]] = blast_results_old[key]
@@ -169,7 +181,9 @@ species = [speciesid_to_idx[metadata.Assembly_speciestaxid[i]] for i in range(le
 taxonomic_level = 'phylum'
 true_idx = [host_to_idx_dict[metadata.Assembly_chainid[i]] for i in range(len(metadata))]
 false_idx = []
-true_family = [(taxid_to_lineage(host_to_speciesid[idx_to_host_dict[idx]])[taxonomic_level] if taxonomic_level in taxid_to_lineage(host_to_speciesid[idx_to_host_dict[idx]]) else None) for idx in true_idx]
+true_family = [(taxid_to_lineage(host_to_speciesid[idx_to_host_dict[idx]])[
+                    taxonomic_level] if taxonomic_level in taxid_to_lineage(
+    host_to_speciesid[idx_to_host_dict[idx]]) else None) for idx in true_idx]
 for i in range(len(metadata)):
     idx = np.random.randint(plasmid_host.shape[1])
     while idx == true_idx[i]:
@@ -200,16 +214,22 @@ for i in range(len(metadata)):
 #     false_idx.append(idxs)
 
 """calculate svpos and svneg"""
-# plasmid_plasmid = np.load('plasmid_plasmid.npy')
+plasmid_plasmid = np.load('plasmid_plasmid.npy')
 svpos = plasmid_plasmid.dot(interaction_table) / interaction_table.sum(axis=0)
 svneg = plasmid_plasmid.dot((1 - interaction_table)) / (1 - interaction_table).sum(axis=0)
 
 """Normalize plasmid-host distance"""
-# plasmid_host = (plasmid_host - plasmid_host.min(axis=0)) / (plasmid_host.max(axis=0) - plasmid_host.min(axis=0))
+plasmid_host = (plasmid_host - plasmid_host.min(axis=0)) / (plasmid_host.max(axis=0) - plasmid_host.min(axis=0))
 
 """Construct positive and negative dataset"""
-# X_pos = np.concatenate([plasmid_host[np.arange(plasmid_host.shape[0]), true_idx, np.newaxis], svpos[np.arange(svpos.shape[0]), true_idx, np.newaxis], svneg[np.arange(svpos.shape[0]), true_idx, np.newaxis], blast_results_mat[np.arange(blast_results_mat.shape[0]), true_idx, np.newaxis]], axis=1)
-# X_neg = np.concatenate([plasmid_host[np.arange(plasmid_host.shape[0]), false_idx, np.newaxis], svpos[np.arange(svpos.shape[0]), false_idx, np.newaxis], svneg[np.arange(svpos.shape[0]), false_idx, np.newaxis], blast_results_mat[np.arange(blast_results_mat.shape[0]), false_idx, np.newaxis]], axis=1)
+X_pos = np.concatenate([plasmid_host[np.arange(plasmid_host.shape[0]), true_idx, np.newaxis],
+                        svpos[np.arange(svpos.shape[0]), true_idx, np.newaxis],
+                        svneg[np.arange(svpos.shape[0]), true_idx, np.newaxis],
+                        blast_results_mat[np.arange(blast_results_mat.shape[0]), true_idx, np.newaxis]], axis=1)
+X_neg = np.concatenate([plasmid_host[np.arange(plasmid_host.shape[0]), false_idx, np.newaxis],
+                        svpos[np.arange(svpos.shape[0]), false_idx, np.newaxis],
+                        svneg[np.arange(svpos.shape[0]), false_idx, np.newaxis],
+                        blast_results_mat[np.arange(blast_results_mat.shape[0]), false_idx, np.newaxis]], axis=1)
 # X = np.concatenate((X_pos, X_neg), axis=0)
 #
 # y = np.concatenate((np.ones(X_pos.shape[0]), np.zeros(X_neg.shape[0])))
@@ -218,6 +238,7 @@ svneg = plasmid_plasmid.dot((1 - interaction_table)) / (1 - interaction_table).s
 
 """Train generalized linear model to predict likelihood of interaction"""
 import statsmodels.api as sm
+
 # glm_binom = sm.GLM(y, X, family=sm.families.Binomial())
 # res = glm_binom.fit()
 
@@ -260,6 +281,7 @@ from sklearn.model_selection import train_test_split
 # from sklearn.neural_network import MLPRegressor
 # from sklearn.svm import SVC, SVR, NuSVR, LinearSVR
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
+
 #
 net_acc = []
 mah_acc = []
@@ -270,13 +292,15 @@ for i in range(100):
     true_idx = np.array(true_idx)
     false_idx = np.array(false_idx)
     # false_idx = np.vstack(false_idx)
-    # X_pos = np.concatenate([plasmid_host[np.arange(idx_train.shape[0]), true_idx[idx_train], np.newaxis]
-    #                            , svpos[np.arange(idx_train.shape[0]), true_idx[idx_train], np.newaxis],
-    #                         blast_results_mat[np.arange(idx_train.shape[0]), true_idx[idx_train], np.newaxis]], axis=1)
     X_pos = np.concatenate([plasmid_host[np.arange(idx_train.shape[0]), true_idx[idx_train], np.newaxis]
-                               , svpos[np.arange(idx_train.shape[0]), true_idx[idx_train], np.newaxis]], axis=1)
+                               , svpos[np.arange(idx_train.shape[0]), true_idx[idx_train], np.newaxis],
+                            blast_results_mat[np.arange(idx_train.shape[0]), true_idx[idx_train], np.newaxis]], axis=1)
+    # X_pos = np.concatenate([plasmid_host[np.arange(idx_train.shape[0]), true_idx[idx_train], np.newaxis],
+    #                         svpos[np.arange(idx_train.shape[0]), true_idx[idx_train], np.newaxis]], axis=1)
     # X_pos = np.tile(X_pos, (1000, 1))
-    X_neg = np.concatenate([plasmid_host[np.arange(idx_train.shape[0]), false_idx[idx_train], np.newaxis], svpos[np.arange(idx_train.shape[0]), false_idx[idx_train], np.newaxis], blast_results_mat[np.arange(idx_train.shape[0]), false_idx[idx_train], np.newaxis]], axis=1)
+    X_neg = np.concatenate([plasmid_host[np.arange(idx_train.shape[0]), false_idx[idx_train], np.newaxis],
+                            svpos[np.arange(idx_train.shape[0]), false_idx[idx_train], np.newaxis],
+                            blast_results_mat[np.arange(idx_train.shape[0]), false_idx[idx_train], np.newaxis]], axis=1)
     # X_neg = np.concatenate([plasmid_host[np.arange(idx_train.shape[0]), false_idx[idx_train, 0], np.newaxis], svpos[np.arange(idx_train.shape[0]), false_idx[idx_train, 0], np.newaxis], blast_results_mat[np.arange(idx_train.shape[0]), false_idx[idx_train, 0], np.newaxis]], axis=1)
     # X_neg =np.concatenate([plasmid_host[np.arange(idx_train.shape[0]), false_idx[idx_train, 0], np.newaxis], svpos[np.arange(idx_train.shape[0]), false_idx[idx_train, 0], np.newaxis]], axis=1)
     # for j in range(1, 10):
@@ -305,7 +329,7 @@ for i in range(100):
     # net_acc.append(acc)
     # print(acc)
 
-    model = MLPClassifier(hidden_layer_sizes=(5, ), activation='logistic')
+    model = MLPClassifier(hidden_layer_sizes=(5,), activation='logistic')
     # model = RandomForestClassifier()
     model.fit(X, y)
 
@@ -386,34 +410,29 @@ for i in range(len(host_list)):
         #             # similarity.append(9 * (10 ** (k-6)))
         #             host_similarity[i, j] = 1 * (10 ** (k-6))
         #             break
-import gc
+
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import f1_score
+
 net_blast_acc = []
 net_no_blast_acc = []
 mah_acc = []
 svpos_acc = []
 blast_acc = []
 for i in range(100):
-    gc.collect()
     idx_train, idx_test = train_test_split(np.arange(plasmid_host.shape[0]), test_size=0.2)
 
     true_idx = np.array(true_idx)
     false_idx = np.array(false_idx)
 
-    # idx_train = idx_train[:500]
-    data_train_blast = np.concatenate((plasmid_host[idx_train, :].flatten()[:, None], svpos[idx_train, :].flatten()[:, None], blast_results_mat[idx_train, :].flatten()[:, None]), axis=1)
-    data_train = np.concatenate((plasmid_host[idx_train, :].flatten()[:, None], svpos[idx_train, :].flatten()[:, None]), axis=1)
+    data_train_blast = np.concatenate((plasmid_host[idx_train, :].flatten()[:, None],
+                                       svpos[idx_train, :].flatten()[:, None],
+                                       blast_results_mat[idx_train, :].flatten()[:, None]), axis=1)
+    data_train = np.concatenate((plasmid_host[idx_train, :].flatten()[:, None], svpos[idx_train, :].flatten()[:, None]),
+                                axis=1)
     data_train = np.concatenate((data_train, np.ones((data_train.shape[0], 1))), axis=1)
     y = [host_similarity[int(true_idx[i])] for i in true_idx[idx_train]]
     y = np.vstack(y).flatten()
 
-    # glm_binom = sm.GLM(y, data_train, family=sm.families.Binomial())
-    # res = glm_binom.fit(method='lbfgs', tol=1e-10, maxiter=500)
-    model = MLPClassifier(hidden_layer_sizes=(3,), activation='relu', max_iter=1000, tol=1e-10)
-    # model = MLPRegressor()
-    # model = RandomForestClassifier(n_jobs=8, class_weight='balanced', max_depth=5)
-    model.fit(data_train_blast, y)
     # clf = LinearSVR()
     # clf.fit(data_train, y)
     # clf = LogisticRegression(class_weight='balanced', tol=1e-10, max_iter=1000, n_jobs=4)
@@ -421,17 +440,12 @@ for i in range(100):
     clf_blast.fit(data_train_blast, y)
     clf = LogisticRegression(class_weight='balanced', n_jobs=4)
     clf.fit(data_train, y)
-    # reg = LinearRegression()
-    # reg.fit(data_train, y)
 
-    data_blast = np.concatenate((plasmid_host[idx_test, :].flatten()[:, None], svpos[idx_test, :].flatten()[:, None], blast_results_mat[idx_test, :].flatten()[:, None]), axis=1)
+    data_blast = np.concatenate((plasmid_host[idx_test, :].flatten()[:, None], svpos[idx_test, :].flatten()[:, None],
+                                 blast_results_mat[idx_test, :].flatten()[:, None]), axis=1)
     data = np.concatenate((plasmid_host[idx_test, :].flatten()[:, None], svpos[idx_test, :].flatten()[:, None]), axis=1)
     data = np.concatenate((data, np.ones((data.shape[0], 1))), axis=1)
 
-    # pred = res.predict(data)
-    # pred = pred.reshape((-1, plasmid_host.shape[1]))
-    # pred = model.predict(data)
-    # pred = pred.reshape((-1, plasmid_host.shape[1]))
     # pred = clf.predict(data)
     # pred = pred.reshape((-1, plasmid_host.shape[1]))
     pred_blast = clf_blast.predict_proba(data_blast)
@@ -469,10 +483,6 @@ for i in range(100):
     print("Network w/ blast: ", acc)
     acc = taxonomic_accuracy(pred, t, use_max=True)
     # acc = np.sum(pred[np.arange(pred.shape[0]), t] == 1) / pred.shape[0]
-    # y_true = np.zeros(pred.shape)
-    # for j in range(len(idx_test)):
-    #     y_true[j, t[j]] = 1
-    # acc = f1_score(y_true.flatten(), pred.flatten())
     net_no_blast_acc.append(acc)
     print("Network: ", acc)
     acc = taxonomic_accuracy(plasmid_host[idx_test, :], t)

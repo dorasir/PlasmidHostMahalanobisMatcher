@@ -50,6 +50,8 @@ class MahalanobisRelativeAbundance:
         subject_split_directory_path = os.path.join(temp_directory_path, 'subject_split')
         if not os.path.exists(subject_split_directory_path):
             os.makedirs(subject_split_directory_path)
+
+        """Split each subject into their target temp directory"""
         subject_list = os.listdir(subject_directory_path)
         for subject in subject_list:
             subject_path = os.path.join(self.subject_directory_path, subject)
@@ -58,6 +60,8 @@ class MahalanobisRelativeAbundance:
             if not os.path.exists(subject_split_path):
                 os.makedirs(subject_split_path)
                 util.split_fasta_by_size(subject_path, subject_split_path)
+            else:
+                continue
 
         self.subject_directory_path = subject_split_directory_path
 

@@ -177,6 +177,7 @@ from Bio.Blast.Applications import NcbiblastnCommandline
 from io import StringIO
 def blast_single(fasta_path, db_path):
     blastn_cline = NcbiblastnCommandline(query=fasta_path, db=db_path, outfmt="6 qacc sacc qstart qend qlen", num_threads=8)
+    # blastn_cline = NcbiblastnCommandline(query=fasta_path, db=db_path, outfmt="6 qacc sacc qstart qend qlen", num_threads=8, perc_identity=100)
     stdout, stderr = blastn_cline()
     if stdout == '':
         blast_success = False
@@ -196,8 +197,6 @@ def blast_single(fasta_path, db_path):
     sr_blast = df_blast_perc.groupby(level=0, sort=False).apply(sum)
     blast_success = True
     return blast_success, sr_blast
-
-
 
 def blast_dir_to_db(query_dir, db_path):
     """
