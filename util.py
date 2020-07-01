@@ -5,7 +5,7 @@ import pickle
 import statsmodels.api as sm
 from typing import List
 import pandas as pd
-
+from tools import kmer_count
 
 plasmids_list = []
 # hosts_list = os.listdir('hosts_processed')
@@ -18,8 +18,6 @@ hosts_path = 'hosts_processed'
 jellyfish_path = './jellyfish-linux'
 sh_path = 'distance.sh'
 dataset_metadata_path = 'Metadata.csv'
-
-
 
 
 def prepare_name():
@@ -47,9 +45,6 @@ def load_obj(name):
     with open(name, 'rb') as f:
         return pickle.load(f)
 
-# host_to_idx = load_obj('host_to_idx.pkl')
-# idx_to_host = load_obj('idx_to_host.pkl')
-
 
 def check_plasmid_fn(plasmid_name):
     if plasmid_name[-2] == '.':
@@ -67,10 +62,6 @@ def check_plasmid_fn(plasmid_name):
             print(plasmid_name)
             return False
     return plasmid_path
-
-
-def host_to_species_taxid(host_name):
-    pass
 
 
 def lowess_adjustment(y: List[np.ndarray], x, target):
@@ -134,12 +125,13 @@ def split_fasta_by_size(input_path, output_dir_path, size=5000):
         with open(os.path.join(output_dir_path, output_fasta_filename), 'w') as output_handle:
             output_handle.write('>{}\n'.format(i))
             if i != split_num - 1:
-                output_handle.write(whole_seq[size * i: size * (i+1)])
+                output_handle.write(whole_seq[size * i: size * (i + 1)])
             else:
                 output_handle.write(whole_seq[size * i:])
 
 
 from Bio import SeqIO
+
 
 def remove_plasmid_seq(input_dir_path, output_dir_path):
     """
@@ -153,8 +145,10 @@ def remove_plasmid_seq(input_dir_path, output_dir_path):
         os.makedirs(output_dir_path)
 
     fasta_filename_list = os.listdir(input_dir_path)
-    def filter_fun(fn:str):
+
+    def filter_fun(fn: str):
         return fn.endswith('.fa') or fn.endswith('.fasta') or fn.endswith('.fna')
+
     fasta_filename_list = filter(filter_fun, fasta_filename_list)
     for fasta_file in fasta_filename_list:
         input_fasta_path = os.path.join(input_dir_path, fasta_file)
@@ -175,9 +169,24 @@ def remove_plasmid_seq(input_dir_path, output_dir_path):
 
 from Bio.Blast.Applications import NcbiblastnCommandline
 from io import StringIO
+
+
 def blast_single(fasta_path, db_path):
-    blastn_cline = NcbiblastnCommandline(query=fasta_path, db=db_path, outfmt="6 qacc sacc qstart qend qlen", num_threads=8)
-    # blastn_cline = NcbiblastnCommandline(query=fasta_path, db=db_path, outfmt="6 qacc sacc qstart qend qlen", num_threads=8, perc_identity=100)
+    """
+    Blast the given fasta file to a NCBI database and calculate the percentage of aligned regions
+    :param fasta_path:
+    :param db_path:
+    :return:
+    """
+
+    def cal_perc(x):
+        indicator = [0] * x[4]
+        for i in range(len(x[2])):
+            indicator[x[2][i]:x[3][i]] = [1] * (x[3][i] - x[2][i] + 1)
+        return sum(indicator)
+
+    blastn_cline = NcbiblastnCommandline(query=fasta_path, db=db_path, outfmt="6 qacc sacc qstart qend qlen",
+                                         num_threads=8)
     stdout, stderr = blastn_cline()
     if stdout == '':
         blast_success = False
@@ -198,6 +207,7 @@ def blast_single(fasta_path, db_path):
     blast_success = True
     return blast_success, sr_blast
 
+
 def blast_dir_to_db(query_dir, db_path):
     """
     Given query directory with fasta and subject directory with fasta,
@@ -216,17 +226,12 @@ def blast_dir_to_db(query_dir, db_path):
     return blast_results
 
 
-def cal_perc(x):
-    indicator = [0]*x[4]
-    for i in range(len(x[2])):
-        indicator[x[2][i]:x[3][i]] = [1]*(x[3][i]-x[2][i]+1)
-    return sum(indicator)
-
-
 def cosine_similarity(f1, f2):
-    n1 = np.linalg.norm(f1,axis=1,keepdims=True)
-    n2 = np.linalg.norm(f2,axis=1,keepdims=True)
-    prod = np.dot(f1,f2.T)
-    return prod/(np.dot(n1,n2.T))
+    n1 = np.linalg.norm(f1, axis=1, keepdims=True)
+    n2 = np.linalg.norm(f2, axis=1, keepdims=True)
+    prod = np.dot(f1, f2.T)
+    return prod / (np.dot(n1, n2.T))
 
 
+def count_dir(dir_path):
+    file_list = os.listdir(dir_path)
