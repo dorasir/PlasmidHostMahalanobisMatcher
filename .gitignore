@@ -1,0 +1,13 @@
+.idea/
+d/
+data/
+data_old/
+e_coli/
+figures/
+hash/
+results/
+taxdump/
+temp_dir/
+__pycache__/
+
+*.npy
