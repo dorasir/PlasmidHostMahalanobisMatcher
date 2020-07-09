@@ -274,7 +274,12 @@ from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 
 def evaluate_performance(model, true_host_idx, host_similarity, repeat=100, use_max=False, **kwargs):
+    """
+    """
     acc = []
+
+    if len(kwargs)==0:
+        raise RuntimeError("No features specified.")
 
     if type(true_host_idx) is list:
         true_host_idx = np.array(true_host_idx)
@@ -291,7 +296,20 @@ def evaluate_performance(model, true_host_idx, host_similarity, repeat=100, use_
     n = features[0].shape[0]
 
     for i in range(repeat):
-        idx_train, idx_test = train_test_split(np.arange(n), test_size=0.2)
+        if 'train_test_indicies' in kwargs.keys():
+            idx_train, idx_test = kwargs['train_test_indicies'][i]
+        else:
+            idx_train, idx_test = train_test_split(np.arange(n), test_size=0.2)
+
+        target = true_host_idx[idx_test]
+
+        if len(kwargs) == 1:
+            if not svpos_indicator:
+                acc.append(taxonomic_accuracy(features[0][idx_test, :], target, use_max=use_max))
+                continue
+            else:
+                svpos_testing = calc_svpos_training(kwargs['plasmid_plasmid'], interaction_table, idx_train, idx_test)
+                acc.append(taxonomic_accuracy(svpos_testing[idx_test, :], target, use_max=use_max))
 
         combined_training_features = [feature[idx_train, :].flatten()[:, None] for feature in features]
         if svpos_indicator:
@@ -311,7 +329,6 @@ def evaluate_performance(model, true_host_idx, host_similarity, repeat=100, use_
         combined_testing_features = np.hstack(combined_testing_features)
         pred = model.predict_proba(combined_testing_features)[:, 1].reshape((-1, features[0].shape[1]))
 
-        target = true_host_idx[idx_test]
         acc.append(taxonomic_accuracy(pred, target, use_max=use_max))
     acc = np.vstack(acc)
     return acc
@@ -319,68 +336,6 @@ def evaluate_performance(model, true_host_idx, host_similarity, repeat=100, use_
 #%%
 model = LogisticRegression(class_weight='balanced')
 acc = evaluate_performance(model, true_idx, host_similarity, repeat=2, use_max=True, plasmid_host=plasmid_host_normalized, blast=blast_results_mat, plasmid_plasmid=plasmid_plasmid)
-
-#%%
-
-
-net_blast_acc = []
-net_no_blast_acc = []
-mah_acc = []
-svpos_acc = []
-blast_acc = []
-for i in range(2):
-    idx_train, idx_test = train_test_split(np.arange(plasmid_host_normalized.shape[0]), test_size=0.2)
-
-    true_idx = np.array(true_idx)
-
-    data_train_blast = np.concatenate((plasmid_host_normalized[idx_train, :].flatten()[:, None],
-                                       svpos[idx_train, :].flatten()[:, None],
-                                       blast_results_mat[idx_train, :].flatten()[:, None]), axis=1)
-    data_train = np.concatenate((plasmid_host_normalized[idx_train, :].flatten()[:, None], svpos[idx_train, :].flatten()[:, None]),
-                                axis=1)
-    data_train = np.concatenate((data_train, np.ones((data_train.shape[0], 1))), axis=1)
-    y = [host_similarity[int(true_idx[i])] for i in true_idx[idx_train]]
-    y = np.vstack(y).flatten()
-
-    clf_blast = LogisticRegression(class_weight='balanced', n_jobs=4)
-    clf_blast.fit(data_train_blast, y)
-    clf = LogisticRegression(class_weight='balanced', n_jobs=4)
-    clf.fit(data_train, y)
-
-    data_blast = np.concatenate((plasmid_host_normalized[idx_test, :].flatten()[:, None], svpos[idx_test, :].flatten()[:, None],
-                                 blast_results_mat[idx_test, :].flatten()[:, None]), axis=1)
-    data = np.concatenate((plasmid_host_normalized[idx_test, :].flatten()[:, None], svpos[idx_test, :].flatten()[:, None]), axis=1)
-    data = np.concatenate((data, np.ones((data.shape[0], 1))), axis=1)
-
-    pred_blast = clf_blast.predict_proba(data_blast)
-    pred_blast = pred_blast[:, 1]
-    pred_blast = pred_blast.reshape((-1, plasmid_host_normalized.shape[1]))
-    pred = clf.predict_proba(data)
-    pred = pred[:, 1]
-    pred = pred.reshape((-1, plasmid_host_normalized.shape[1]))
-
-    t = true_idx[idx_test]
-
-    acc = taxonomic_accuracy(pred_blast, t, use_max=True)
-    net_blast_acc.append(acc)
-    print("Network w/ blast: ", acc)
-    acc = taxonomic_accuracy(pred, t, use_max=True)
-    net_no_blast_acc.append(acc)
-    print("Network: ", acc)
-    acc = taxonomic_accuracy(plasmid_host_normalized[idx_test, :], t)
-    mah_acc.append(acc)
-    print("Mah: ", acc)
-    acc = taxonomic_accuracy(svpos[idx_test, :], t, use_max=True)
-    svpos_acc.append(acc)
-    print("Svpos: ", acc)
-    acc = taxonomic_accuracy(blast_results_mat[idx_test, :], t, use_max=True)
-    blast_acc.append(acc)
-    print("Blast: ", acc)
-net_blast_acc = np.vstack(net_blast_acc)
-net_no_blast_acc = np.vstack(net_no_blast_acc)
-mah_acc = np.vstack(mah_acc)
-svpos_acc = np.vstack(mah_acc)
-blast_acc = np.vstack(blast_acc)
 
 # import matplotlib.pyplot as plt
 # for i in range(6):
