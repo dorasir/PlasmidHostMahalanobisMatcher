@@ -11,3 +11,16 @@ temp_dir/
 __pycache__/
 
 *.npy
+*.pkl
+*.fa
+*.tab
+*.xlsx
+*.so
+*.fasta
+*.fna
+*.na
+*.tar.gz
+*.phy
+
+cafe_linux
+jellyfish-linux
