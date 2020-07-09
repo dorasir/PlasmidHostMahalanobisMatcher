@@ -13,13 +13,13 @@ warnings.filterwarnings("ignore")
 from tools import kmer_count
 
 #%% Defining taxonomic accuracy function
+desired_ranks = ['phylum', 'class', 'order', 'family', 'genus', 'species']
 def taxid_to_lineage(taxid):
     """
     Function for retrieving the taxonomic rank of given taxid
     :param taxid:
     :return:
     """
-    desired_ranks = ['phylum', 'class', 'order', 'family', 'genus', 'species']
     ncbi = NCBITaxa()
     lineage = ncbi.get_lineage(taxid)
     rank_to_id = {rank: id for (id, rank) in ncbi.get_rank(lineage).items()}
@@ -29,7 +29,6 @@ def taxid_to_lineage(taxid):
 
 
 def taxonomic_accuracy(prediction, target, use_max=False):
-    desired_ranks = ['phylum', 'class', 'order', 'family', 'genus', 'species']
     cnt = np.zeros(7)
     for i in range(prediction.shape[0]):
         if use_max:
@@ -64,11 +63,11 @@ def load_metadata():
 metadata = load_metadata()
 
 #%% Moving plasmid
-def move_plasmid(metadata, plasmid_path, used_plasmid_path):
+def move_plasmid(metadata, plasmid_path='data/plasmids', used_plasmid_path='data/plasmids_used'):
     """Move plasmids with host information to plasmids_used directory"""
-    os.makedirs('data/plasmids_used')
+    os.makedirs(used_plasmid_path)
     plasmid_list = list(metadata.Locus_ID)
-    for fn in os.listdir('data/plasmids'):
+    for fn in os.listdir(plasmid_path):
         if fn.split('.')[0] in plasmid_list:
             shutil.copyfile(os.path.join('data/plasmids', fn), os.path.join('data/plasmids_used', fn))
 
@@ -89,7 +88,7 @@ def generate_data(subject_path, query_path, save_path, recalculate=False, save=F
         plasmid_plasmid = util.cosine_similarity(plasmid_kmer_freq, plasmid_kmer_freq)
     else:
         plasmid_host = np.load(save_path)
-        plasmid_kmer_count = #TODO
+        plasmid_kmer_count = 0 #TODO
 
 
 #%% Defining training parameters
@@ -99,7 +98,6 @@ thread_num = 8
 plasmid_host_class_path = 'plasmid_host.pkl'
 plasmid_host_dist_path = 'plasmid_host.npy'
 
-
 #%% Calculate plasmid-host distance and save result
 t = MahalanobisRelativeAbundance('data/hosts', 'data/plasmids_used', temp_directory_path='temp_dir/plasmid_host', k=k)
 plasmid_host = t.calc_distance(thread_num)
@@ -107,7 +105,7 @@ np.save(plasmid_host_dist_path, plasmid_host)
 util.save_obj(t, plasmid_host_class_path)
 
 #%% Load calculated plasmid-host distance
-plasmid_host = np.load('plasmid_host.npy')
+plasmid_host = np.load(plasmid_host_dist_path)
 
 #%% Normalize plasmid-host distance
 plasmid_host_normalized = (plasmid_host - plasmid_host.min(axis=0)) / (plasmid_host.max(axis=0) - plasmid_host.min(axis=0))
@@ -165,12 +163,11 @@ for i in range(len(metadata)):
 blast_results = util.blast_dir_to_db('data/plasmids_used', 'data/hosts_no_plasmid_complete.fna')
 util.save_obj(blast_results, 'blast_results.pkl')
 
-blast_results = util.blast_dir_to_db('plsdb', 'data/hosts_no_plasmid_complete.fna')
-util.save_obj(blast_results, 'blast_results_plsdb.pkl')
+# blast_results = util.blast_dir_to_db('plsdb', 'data/hosts_no_plasmid_complete.fna')
+# util.save_obj(blast_results, 'blast_results_plsdb.pkl')
 
 #%% Construct blast result matrix
 blast_results_old = util.load_obj('blast_results.pkl')
-# blast_results_old = util.load_obj('blast_results_plsdb.pkl')
 blast_results = {}
 for key in blast_results_old:
     blast_results[key.split('.')[0]] = blast_results_old[key]
@@ -184,6 +181,10 @@ for i in range(len(metadata)):
             idx = host_to_idx_dict[int(key[4:])]
             blast_results_mat[i, idx] = series[key]
 
+#%% Calculate svpos and svneg
+plasmid_plasmid = np.load('plasmid_plasmid.npy')
+svpos = plasmid_plasmid.dot(interaction_table) / interaction_table.sum(axis=0)
+
 #%% Construct species taxid to index mapping
 speciesid_to_idx_l = list(set(metadata.Assembly_speciestaxid))
 speciesid_to_idx_l.sort()
@@ -193,81 +194,48 @@ idx_to_speciesid = {i: s for i, s in enumerate(speciesid_to_idx_l)}
 species = [speciesid_to_idx[metadata.Assembly_speciestaxid[i]] for i in range(len(metadata))]
 
 #%% Construct index of positive set and negative set for each plasmid
-taxonomic_level = 'phylum'
-true_idx = [host_to_idx_dict[metadata.Assembly_chainid[i]] for i in range(len(metadata))]
-false_idx = []
-true_family = [(taxid_to_lineage(host_to_speciesid[idx_to_host_dict[idx]])[
-                    taxonomic_level] if taxonomic_level in taxid_to_lineage(
-    host_to_speciesid[idx_to_host_dict[idx]]) else None) for idx in true_idx]
-for i in range(len(metadata)):
-    idx = np.random.randint(plasmid_host.shape[1])
-    while idx == true_idx[i]:
-        idx = np.random.randint(plasmid_host.shape[1])
-    # false_lineage = taxid_to_lineage(host_to_speciesid[idx_to_host_dict[idx]])
-    # false_family = false_lineage[taxonomic_level] if taxonomic_level in false_lineage else None
-    # while idx == true_idx[i] and false_family == true_family[i]:
-    #     idx = np.random.randint(plasmid_host.shape[1])
-    #     false_lineage = taxid_to_lineage(host_to_speciesid[idx_to_host_dict[idx]])
-    #     false_family = false_lineage[taxonomic_level] if taxonomic_level in false_lineage else None
-    false_idx.append(idx)
+def generate_true_false_pairs(taxonomic_level=None):
+    true_idx = [host_to_idx_dict[metadata.Assembly_chainid[i]] for i in range(len(metadata))]
+    false_idx = []
+    if taxonomic_level:
+        for i in range(len(metadata)):
+            idx = np.random.randint(plasmid_host.shape[1])
+            while idx == true_idx[i]:
+                idx = np.random.randint(plasmid_host.shape[1])
+            false_idx.append(idx)
+    else:
+        true_family = [(taxid_to_lineage(host_to_speciesid[idx_to_host_dict[idx]])[
+            taxonomic_level] if taxonomic_level in taxid_to_lineage(
+                host_to_speciesid[idx_to_host_dict[idx]]) else None) for idx in true_idx]
+        for i in range(len(metadata)):
+            idx = np.random.randint(plasmid_host.shape[1])
+            while idx == true_idx[i]:
+                idx = np.random.randint(plasmid_host.shape[1])
+            false_lineage = taxid_to_lineage(host_to_speciesid[idx_to_host_dict[idx]])
+            false_family = false_lineage[taxonomic_level] if taxonomic_level in false_lineage else None
+            while idx == true_idx[i] and false_family == true_family[i]:
+                idx = np.random.randint(plasmid_host.shape[1])
+                false_lineage = taxid_to_lineage(host_to_speciesid[idx_to_host_dict[idx]])
+                false_family = false_lineage[taxonomic_level] if taxonomic_level in false_lineage else None
+            false_idx.append(idx)
+    return true_idx, false_idx
 
-#%% Calculate svpos and svneg
-plasmid_plasmid = np.load('plasmid_plasmid.npy')
-svpos = plasmid_plasmid.dot(interaction_table) / interaction_table.sum(axis=0)
-svneg = plasmid_plasmid.dot((1 - interaction_table)) / (1 - interaction_table).sum(axis=0)
+true_idx, false_idx = generate_true_false_pairs()
 
 #%% Construct positive and negative dataset
 X_pos = np.concatenate([plasmid_host_normalized[np.arange(plasmid_host_normalized.shape[0]), true_idx, np.newaxis],
                         svpos[np.arange(svpos.shape[0]), true_idx, np.newaxis],
-                        svneg[np.arange(svpos.shape[0]), true_idx, np.newaxis],
                         blast_results_mat[np.arange(blast_results_mat.shape[0]), true_idx, np.newaxis]], axis=1)
 X_neg = np.concatenate([plasmid_host_normalized[np.arange(plasmid_host_normalized.shape[0]), false_idx, np.newaxis],
                         svpos[np.arange(svpos.shape[0]), false_idx, np.newaxis],
-                        svneg[np.arange(svpos.shape[0]), false_idx, np.newaxis],
                         blast_results_mat[np.arange(blast_results_mat.shape[0]), false_idx, np.newaxis]], axis=1)
-# X = np.concatenate((X_pos, X_neg), axis=0)
-#
-# y = np.concatenate((np.ones(X_pos.shape[0]), np.zeros(X_neg.shape[0])))
-#
-# X = np.concatenate((X, np.ones((X.shape[0], 1))), axis=1)
+X = np.concatenate((X_pos, X_neg), axis=0)
+y = np.concatenate((np.ones(X_pos.shape[0]), np.zeros(X_neg.shape[0])))
 
-"""Split """
-from sklearn.model_selection import train_test_split
+#%% Plot ROC curve and calculate AUC
 
-# for i in range(10):
-#     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1)
-#     glm_binom = sm.GLM(y_train, X_train, family=sm.families.Binomial())
-#     res = glm_binom.fit()
-
-
-# data = np.concatenate((X, y[:, None]), axis=1)
-# data_train, data_test = train_test_split(data, test_size=0.1)
-# glm_binom = sm.GLM(data_train[:, -1], data_train[:, :-1], family=sm.families.Binomial())
-# res = glm_binom.fit(max_iter=200)
-#
-# data = np.concatenate((plasmid_host_normalized.flatten()[:, None], svpos.flatten()[:, None], svneg.flatten()[:, None], blast_results_mat.flatten()[:, None]), axis=1)
-# data = np.concatenate((data, np.ones((data.shape[0], 1))), axis=1)
-#
-# pred = res.predict(data)
-# pred = pred.reshape(plasmid_host_normalized.shape)
-#
-#
-#
-#
-#
-# acc = taxonomic_accuracy(pred, true_idx)
-# print(acc)
-
-# cnt = np.zeros(7)
-# for i in range(pred.shape[0]):
-#     rank_to_id_1 = taxid_to_lineage(host_to_speciesid[idx_to_host_dict[pred[i, :].argmin()]])
-#     rank_to_id_2 = taxid_to_lineage(host_to_speciesid[idx_to_host_dict[true_idx[i]]])
-#     for j, rank in enumerate(desired_ranks):
-#         if rank_to_id_1[rank] == rank_to_id_2[rank] and rank_to_id_1[rank] is not None:
-#             cnt[j] += 1
-# print(cnt / pred.shape[0])
-
-
+#%%
+levelwise_similarity = False
 host_similarity = np.zeros((len(host_list), len(host_list)))
 host_lineage = {}
 for i in range(len(host_list)):
@@ -287,32 +255,72 @@ for i in range(len(host_list)):
         if rank in lineage_1 and rank in lineage_2 and lineage_1[rank] == lineage_2[rank]:
             host_similarity[i, j] = 1
         # Compare lineage of two hosts
-        # for k in range(len(desired_ranks)-1, -1, -1):
-        #     if desired_ranks[k] in lineage_1 and desired_ranks[k] in lineage_2:
-        #         if lineage_1[desired_ranks[k]] == lineage_2[desired_ranks[k]]:
-        #             # similarity.append(9 * (10 ** (k-6)))
-        #             host_similarity[i, j] = 1 * (10 ** (k-6))
-        #             break
+        if levelwise_similarity:
+            for k in range(len(desired_ranks)-1, -1, -1):
+                if desired_ranks[k] in lineage_1 and desired_ranks[k] in lineage_2:
+                    if lineage_1[desired_ranks[k]] == lineage_2[desired_ranks[k]]:
+                        host_similarity[i, j] = 1 * (10 ** (k-6))
+                        break
 
+#%% Function for calculating svpos
+def calc_svpos_training(plasmid_plasmid_dist:np.ndarray, plasmid_host_interaction_indicator, train_index, test_index):
+    train_test_distance = plasmid_plasmid_dist[np.ix_(test_index, train_index)]
+    train_host_indicator = plasmid_host_interaction_indicator[train_index]
+    svpos = train_test_distance.dot(train_host_indicator) / train_host_indicator.sum(axis=0)
+    return np.nan_to_num(svpos)
+
+#%% Train and test the model
+from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 
-def evaluate_performance(model, true_host_idx, host_similarity, *features, repeat=100):
-
+def evaluate_performance(model, true_host_idx, host_similarity, repeat=100, use_max=False, **kwargs):
     acc = []
+
+    if type(true_host_idx) is list:
+        true_host_idx = np.array(true_host_idx)
+
+    # Indication of if we need to calculate svpos
+    svpos_indicator = False
+    features = []
+    for key in kwargs.keys():
+        if key == 'plasmid_host' or key == 'blast':
+            features.append(kwargs[key])
+        elif key == 'plasmid_plasmid':
+            svpos_indicator = True
+
+    n = features[0].shape[0]
+
     for i in range(repeat):
-        idx_train, idx_test = train_test_split(np.arange(features[0].shape[0]), test_size=0.2)
-        if type(true_host_idx) is list:
-            true_host_idx = np.array(true_host_idx)
+        idx_train, idx_test = train_test_split(np.arange(n), test_size=0.2)
 
         combined_training_features = [feature[idx_train, :].flatten()[:, None] for feature in features]
-        combined_training_features = np.hstack[combined_training_features]
+        if svpos_indicator:
+            svpos_training = calc_svpos_training(kwargs['plasmid_plasmid'], interaction_table, idx_train, idx_train)
+            combined_training_features.append(svpos_training.flatten()[:, None])
+            
+        combined_training_features = np.hstack(combined_training_features)
         y_train = [host_similarity[int(true_host_idx[i])] for i in true_host_idx[idx_train]]
         y_train = np.vstack(y_train).flatten()
         model.fit(combined_training_features, y_train)
 
         combined_testing_features = [feature[idx_test, :].flatten()[:, None] for feature in features]
-        combined_testing_features = np.hstack[combined_testing_features]
+        if svpos_indicator:
+            svpos_testing = calc_svpos_training(kwargs['plasmid_plasmid'], interaction_table, idx_train, idx_test)
+            combined_testing_features.append(svpos_testing.flatten()[:, None])
+        
+        combined_testing_features = np.hstack(combined_testing_features)
         pred = model.predict_proba(combined_testing_features)[:, 1].reshape((-1, features[0].shape[1]))
+
+        target = true_host_idx[idx_test]
+        acc.append(taxonomic_accuracy(pred, target, use_max=use_max))
+    acc = np.vstack(acc)
+    return acc
+
+#%%
+model = LogisticRegression(class_weight='balanced')
+acc = evaluate_performance(model, true_idx, host_similarity, repeat=2, use_max=True, plasmid_host=plasmid_host_normalized, blast=blast_results_mat, plasmid_plasmid=plasmid_plasmid)
+
+#%%
 
 
 net_blast_acc = []
@@ -320,7 +328,7 @@ net_no_blast_acc = []
 mah_acc = []
 svpos_acc = []
 blast_acc = []
-for i in range(100):
+for i in range(2):
     idx_train, idx_test = train_test_split(np.arange(plasmid_host_normalized.shape[0]), test_size=0.2)
 
     true_idx = np.array(true_idx)
