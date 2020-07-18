@@ -8,9 +8,6 @@ import pandas as pd
 from tools import kmer_count
 
 plasmids_list = []
-# hosts_list = os.listdir('hosts_processed')
-# hosts_list.sort()
-# host_list_dict = dict((name, i) for i, name in enumerate(hosts_list))
 
 cafe_path = './cafe_linux'
 plasmids_path = 'plasmids'
