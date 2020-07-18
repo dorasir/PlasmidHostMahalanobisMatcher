@@ -13,9 +13,14 @@ NT_TYPE_NUM = 4
 class MahalanobisRelativeAbundance:
     def __init__(self, subject_directory_path, query_directory_path, k=3, temp_directory_path='temp_dir', thread=1):
         """Initialization of variables"""
-
         self.subject_directory_path = subject_directory_path
         self.query_directory_path = query_directory_path
+
+        self.k = k
+        nucleotides = ['A', 'C', 'G', 'T']
+        self.mer_to_idx = {}
+        for i, mer in enumerate(product(nucleotides, repeat=k)):
+            self.mer_to_idx[''.join(list(mer))] = i
 
         """Setting variable for subject, usually be host"""
         self.subject_single_count = 0  # list with n (k, 4) ndarray, k is number of 5k base fragments
@@ -34,12 +39,6 @@ class MahalanobisRelativeAbundance:
         """Number of threads to use in counting k-mer, not use in calculation of M-dist as multi threading might
          slow down numpy calculation"""
         self.thread = thread
-
-        self.k = k
-        nucleotides = ['A', 'C', 'G', 'T']
-        self.mer_to_idx = {}
-        for i, mer in enumerate(product(nucleotides, repeat=k)):
-            self.mer_to_idx[''.join(list(mer))] = i
 
         self.temp_directory_path = temp_directory_path
         if not os.path.exists(temp_directory_path):
@@ -67,6 +66,79 @@ class MahalanobisRelativeAbundance:
                 continue
 
         self.subject_directory_path = subject_split_directory_path
+
+    def calc_distance(self, thread=1):
+        subject_directory_list = os.listdir(self.subject_directory_path)
+        subject_directory_list = [os.path.join(self.subject_directory_path, f) for f in subject_directory_list if
+                                  not f.startswith('.')]
+        subject_directory_list.sort()
+
+        query_directory_list = os.listdir(self.query_directory_path)
+        query_directory_list = [os.path.join(self.query_directory_path, f) for f in query_directory_list if
+                                not f.startswith('.')]
+        query_directory_list.sort()
+
+        if thread == 1:
+            print("Counting host nucleotide and kmer frequency...")
+            self.subject_single_count = *map(self.count_single_nucleotide, subject_directory_list),
+            self.subject_kmer_count = *map(self.count_kmer, subject_directory_list),
+
+            self.subject_single_freq = *map(self.normalize, self.subject_single_count),
+            self.subject_kmer_freq = *map(self.normalize, self.subject_kmer_count),
+
+            print("Calculating host relative abundance...")
+            self.subject_relative_abundance = *map(self.calculate_relative_abundance, self.subject_kmer_freq,
+                                                   self.subject_single_freq),
+
+            print("Counting plasmid nucleotide and kmer frequency...")
+            self.query_single_count = *map(self.count_single_nucleotide, query_directory_list),
+            self.query_kmer_count = *map(self.count_kmer, query_directory_list),
+
+            self.query_single_freq = *map(self.normalize, self.query_single_count),
+            self.query_kmer_freq = *map(self.normalize, self.query_kmer_count),
+
+            print("Calculating plasmid relative abundance...")
+            self.query_relative_abundance = *map(self.calculate_relative_abundance, self.query_kmer_freq,
+                                                 self.query_single_freq),
+
+            print("Calculating Mahalanobis distance...")
+            self.calculate_mahalanobis_distance()
+
+        elif thread != 1:
+            p = Pool(thread)
+
+            print("Counting host nucleotide and kmer frequency...")
+            self.subject_single_count = p.map(self.count_single_nucleotide, subject_directory_list)
+            self.subject_kmer_count = p.map(self.count_kmer, subject_directory_list)
+
+            self.subject_single_freq = *map(self.normalize, self.subject_single_count),
+            self.subject_kmer_freq = *map(self.normalize, self.subject_kmer_count),
+
+            print("Calculating host relative abundance...")
+            # self.host_relative_abundance = p.starmap(self.calculate_relative_abundance, zip(self.host_kmer_freq, self.host_single_freq))
+            self.subject_relative_abundance = *map(self.calculate_relative_abundance, self.subject_kmer_freq,
+                                                   self.subject_single_freq),
+
+            print("Counting plasmid nucleotide and kmer frequency...")
+            self.query_single_count = p.map(self.count_single_nucleotide, query_directory_list)
+            self.query_kmer_count = *map(self.count_kmer, query_directory_list),
+
+            self.query_single_freq = *map(self.normalize, self.query_single_count),
+            self.query_kmer_freq = *map(self.normalize, self.query_kmer_count),
+
+            print("Calculating plasmid relative abundance...")
+            # self.plasmid_relative_abundance = p.starmap(self.calculate_relative_abundance,
+            #                                             zip(self.plasmid_kmer_freq, self.plasmid_single_freq))
+            self.query_relative_abundance = *map(self.calculate_relative_abundance, self.query_kmer_freq,
+                                                 self.query_single_freq),
+            p.close()
+
+            print("Calculating Mahalanobis distance...")
+            self.calculate_mahalanobis_distance()
+
+            p.close()
+
+        return self.mahalanobis_distance
 
     @staticmethod
     def count_single_nucleotide(path, output_directory_path='temp_dir'):
@@ -277,75 +349,3 @@ class MahalanobisRelativeAbundance:
         if len(ndarray.shape) == 1:
             return np.nan_to_num(ndarray / ndarray.sum())
 
-    def calc_distance(self, thread=1):
-        subject_directory_list = os.listdir(self.subject_directory_path)
-        subject_directory_list = [os.path.join(self.subject_directory_path, f) for f in subject_directory_list if
-                                  not f.startswith('.')]
-        subject_directory_list.sort()
-
-        query_directory_list = os.listdir(self.query_directory_path)
-        query_directory_list = [os.path.join(self.query_directory_path, f) for f in query_directory_list if
-                                not f.startswith('.')]
-        query_directory_list.sort()
-
-        if thread == 1:
-            print("Counting host nucleotide and kmer frequency...")
-            self.subject_single_count = *map(self.count_single_nucleotide, subject_directory_list),
-            self.subject_kmer_count = *map(self.count_kmer, subject_directory_list),
-
-            self.subject_single_freq = *map(self.normalize, self.subject_single_count),
-            self.subject_kmer_freq = *map(self.normalize, self.subject_kmer_count),
-
-            print("Calculating host relative abundance...")
-            self.subject_relative_abundance = *map(self.calculate_relative_abundance, self.subject_kmer_freq,
-                                                   self.subject_single_freq),
-
-            print("Counting plasmid nucleotide and kmer frequency...")
-            self.query_single_count = *map(self.count_single_nucleotide, query_directory_list),
-            self.query_kmer_count = *map(self.count_kmer, query_directory_list),
-
-            self.query_single_freq = *map(self.normalize, self.query_single_count),
-            self.query_kmer_freq = *map(self.normalize, self.query_kmer_count),
-
-            print("Calculating plasmid relative abundance...")
-            self.query_relative_abundance = *map(self.calculate_relative_abundance, self.query_kmer_freq,
-                                                 self.query_single_freq),
-
-            print("Calculating Mahalanobis distance...")
-            self.calculate_mahalanobis_distance()
-
-        elif thread != 1:
-            p = Pool(thread)
-
-            print("Counting host nucleotide and kmer frequency...")
-            self.subject_single_count = p.map(self.count_single_nucleotide, subject_directory_list)
-            self.subject_kmer_count = p.map(self.count_kmer, subject_directory_list)
-
-            self.subject_single_freq = *map(self.normalize, self.subject_single_count),
-            self.subject_kmer_freq = *map(self.normalize, self.subject_kmer_count),
-
-            print("Calculating host relative abundance...")
-            # self.host_relative_abundance = p.starmap(self.calculate_relative_abundance, zip(self.host_kmer_freq, self.host_single_freq))
-            self.subject_relative_abundance = *map(self.calculate_relative_abundance, self.subject_kmer_freq,
-                                                   self.subject_single_freq),
-
-            print("Counting plasmid nucleotide and kmer frequency...")
-            self.query_single_count = p.map(self.count_single_nucleotide, query_directory_list)
-            self.query_kmer_count = *map(self.count_kmer, query_directory_list),
-
-            self.query_single_freq = *map(self.normalize, self.query_single_count),
-            self.query_kmer_freq = *map(self.normalize, self.query_kmer_count),
-
-            print("Calculating plasmid relative abundance...")
-            # self.plasmid_relative_abundance = p.starmap(self.calculate_relative_abundance,
-            #                                             zip(self.plasmid_kmer_freq, self.plasmid_single_freq))
-            self.query_relative_abundance = *map(self.calculate_relative_abundance, self.query_kmer_freq,
-                                                 self.query_single_freq),
-            p.close()
-
-            print("Calculating Mahalanobis distance...")
-            self.calculate_mahalanobis_distance()
-
-            p.close()
-
-        return self.mahalanobis_distance
