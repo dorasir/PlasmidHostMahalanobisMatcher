@@ -24,3 +24,9 @@ __pycache__/
 
 cafe_linux
 jellyfish-linux
+
+.pdf
+.jpg
+.png
+
+build
