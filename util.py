@@ -5,7 +5,7 @@ import pickle
 import statsmodels.api as sm
 from typing import List
 import pandas as pd
-from tools import kmer_count
+from src._count import kmer_count
 
 plasmids_list = []
 
@@ -34,11 +34,25 @@ def prepare_name():
 
 
 def save_obj(obj, name):
+    """Save an object on given path
+
+    :param obj: Object to be save
+    :type obj: Any
+    :param name: Path of the saved object
+    :type name: str
+    """
     with open(name, 'wb') as f:
         pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
 
 
-def load_obj(name):
+def load_obj(name:str):
+    """Load a saved object from hard disk
+
+    :param name: Paht of the saved object
+    :type name: str
+    :return: The saved object
+    :rtype: Any
+    """
     with open(name, 'rb') as f:
         return pickle.load(f)
 
@@ -73,6 +87,7 @@ def lowess_adjustment(y: List[np.ndarray], x, target):
 
 
 def count_nucleotide(file):
+    nucleotides = ['A', 'C', 'G', 'T']
     try:
         f = open(file)
     except UnicodeDecodeError:
@@ -83,15 +98,9 @@ def count_nucleotide(file):
         for line in f.readlines():
             if line[0] == '>':
                 continue
-            for c in line:
-                if c == 'A':
-                    occ[0] += 1
-                elif c == 'C':
-                    occ[1] += 1
-                elif c == 'G':
-                    occ[2] += 1
-                elif c == 'T':
-                    occ[3] += 1
+            l = line.upper()
+            for i, n in enumerate(nucleotides):
+                occ[i] += l.count(n)
         return occ
     except UnicodeDecodeError:
         print(file)
@@ -101,6 +110,7 @@ def count_nucleotide(file):
 def split_fasta_by_size(input_path, output_dir_path, size=5000):
     """
     Split a given fasta file and save the split fasta into the output directory
+    
     :param input_path: path to the fasta file
     :param output_dir_path: path of the output directory
     :param size:
@@ -232,3 +242,18 @@ def cosine_similarity(f1, f2):
 
 def count_dir(dir_path):
     file_list = os.listdir(dir_path)
+
+def db_to_fasta(db_path, fasta_path):
+    """
+
+    """
+
+def fasta_to_database(fasta_directory, database_name):
+    pass
+
+
+def check_directory_content(directory_path):
+    for file in os.listdir(directory_path):
+        if not file.endswith('.fasta') or file.endswith('.fa'):
+            raise RuntimeError("Contains non-fasta file within provided directory.")
+    return True
