@@ -1,9 +1,12 @@
 # %% Initial import
+import sklearn.metrics as metrics
+from Bio.SeqIO import index
 import matplotlib.pyplot as plt
 from numpy.lib.function_base import average
+from sklearn import metrics
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
-from tools import kmer_count
+from src._count import kmer_count
 from MahalanobisRelativeAbundance import MahalanobisRelativeAbundance
 import numpy as np
 import pandas as pd
@@ -11,6 +14,7 @@ import os
 import shutil
 import util
 from ete3 import NCBITaxa
+from sklearn.preprocessing import minmax_scale
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -56,7 +60,7 @@ def taxonomic_accuracy(prediction, target, use_max=False):
     acc = cnt / prediction.shape[0]
     return acc
 
-# %%
+# %% Defining taxonomic accuracy function with increasing prediction probability threshold
 
 
 def taxonomic_accuracy_threshold(prediction, target, use_max=True):
@@ -112,6 +116,19 @@ def load_metadata():
 
 metadata = load_metadata()
 
+
+# %% Defining training parameters
+k = 3
+thread_num = 8
+
+plasmid_host_class_path = 'plasmid_host.pkl'
+plasmid_host_dist_path = 'plasmid_host.npy'
+
+preprocess_file = False
+calculate_mahalanobis = False
+calculate_blast = False
+
+
 # %% Moving plasmid
 
 
@@ -125,50 +142,29 @@ def move_plasmid(metadata, plasmid_path='data/plasmids', used_plasmid_path='data
                             os.path.join('data/plasmids_used', fn))
 
 
-move_plasmid(metadata)
-
-util.remove_plasmid_seq('data/hosts', 'data/hosts_no_plasmid')
-
-
-# %%
-def generate_data(subject_path, query_path, save_path, recalculate=False, save=False, k=3):
-
-    if recalculate:
-        t = MahalanobisRelativeAbundance(
-            subject_path, query_path, temp_directory_path='temp_dir/plasmid_host', k=k)
-        plasmid_host = t.calc_distance(8)
-        if save:
-            np.save(save_path, plasmid_host)
-        plasmid_kmer_freq = t.query_kmer_freq
-        plasmid_plasmid = util.cosine_similarity(
-            plasmid_kmer_freq, plasmid_kmer_freq)
-    else:
-        plasmid_host = np.load(save_path)
-        plasmid_kmer_count = 0  # TODO
+if preprocess_file:
+    move_plasmid(metadata)
+    util.remove_plasmid_seq('data/hosts', 'data/hosts_no_plasmid')
 
 
-# %% Defining training parameters
-k = 3
-thread_num = 8
-
-plasmid_host_class_path = 'plasmid_host.pkl'
-plasmid_host_dist_path = 'plasmid_host.npy'
 
 # %% Calculate plasmid-host distance and save result
-t = MahalanobisRelativeAbundance(
-    'data/hosts', 'data/plasmids_used', temp_directory_path='temp_dir/plasmid_host', k=k)
-plasmid_host = t.calc_distance(thread_num)
-np.save(plasmid_host_dist_path, plasmid_host)
-util.save_obj(t, plasmid_host_class_path)
+if calculate_mahalanobis:
+    t = MahalanobisRelativeAbundance(
+        'data/hosts_no_plasmid', 'data/plasmids_used', temp_directory_path='temp_dir/plasmid_host', k=k)
+    plasmid_host = t.calc_distance(thread_num)
+    np.save(plasmid_host_dist_path, plasmid_host)
+    util.save_obj(t, plasmid_host_class_path)
 
-# %% Load calculated plasmid-host distance
+# %% Load related diatance
+# Load calculated plasmid-host distance
 plasmid_host = np.load(plasmid_host_dist_path)
 
-# %% Normalize plasmid-host distance
+# Normalize plasmid-host distance
 plasmid_host_normalized = (plasmid_host - plasmid_host.min(axis=0)) / \
     (plasmid_host.max(axis=0) - plasmid_host.min(axis=0))
 
-# %% Calculate plasmid-wise distance
+# Calculate plasmid-wise distance
 plasmid_plasmid = util.cosine_similarity(plasmid_host, plasmid_host)
 
 
@@ -223,18 +219,19 @@ for i in range(len(metadata)):
 # seqacc_to_hostacc_dict = util.load_obj('seqacc_to_hostacc.pkl')
 
 # %% Calculate blast
-blast_results = util.blast_dir_to_db(
-    'data/plasmids_used', 'data/hosts_no_plasmid_complete.fna')
-util.save_obj(blast_results, 'blast_results.pkl')
+if calculate_blast:
+    blast_results = util.blast_dir_to_db(
+        'data/plasmids_used', 'data/hosts_no_plasmid_complete.fna')
+    util.save_obj(blast_results, 'blast_results.pkl')
 
 # blast_results = util.blast_dir_to_db('plsdb', 'data/hosts_no_plasmid_complete.fna')
 # util.save_obj(blast_results, 'blast_results_plsdb.pkl')
 
 # %% Construct blast result matrix
-blast_results_old = util.load_obj('blast_results.pkl')
+blast_results_dict = util.load_obj('blast_results.pkl')
 blast_results = {}
-for key in blast_results_old:
-    blast_results[key.split('.')[0]] = blast_results_old[key]
+for key in blast_results_dict:
+    blast_results[key.split('.')[0]] = blast_results_dict[key]
 blast_results_mat = np.zeros((len(metadata), len(set(host_list))))
 for i in range(len(metadata)):
     success, series = blast_results[metadata.Locus_ID[i]]
@@ -245,16 +242,15 @@ for i in range(len(metadata)):
             idx = host_to_idx_dict[int(key[4:])]
             blast_results_mat[i, idx] = series[key]
 
-# %% Calculate svpos and svneg
-plasmid_plasmid = np.load('plasmid_plasmid.npy')
+# %% Calculate svpos
 svpos = plasmid_plasmid.dot(interaction_table) / interaction_table.sum(axis=0)
 
 # %% Construct species taxid to index mapping
-speciesid_to_idx_l = list(set(metadata.Assembly_speciestaxid))
-speciesid_to_idx_l.sort()
-speciesid_to_idx = {s: i for i, s in enumerate(speciesid_to_idx_l)}
-idx_to_speciesid = {i: s for i, s in enumerate(speciesid_to_idx_l)}
-"""List of index of species"""
+speciesid_to_idx_list = list(set(metadata.Assembly_speciestaxid))
+speciesid_to_idx_list.sort()
+speciesid_to_idx = {s: i for i, s in enumerate(speciesid_to_idx_list)}
+idx_to_speciesid = {i: s for i, s in enumerate(speciesid_to_idx_list)}
+# List of index of species
 species = [speciesid_to_idx[metadata.Assembly_speciestaxid[i]]
            for i in range(len(metadata))]
 
@@ -265,7 +261,7 @@ def generate_true_false_pairs(taxonomic_level=None):
     true_idx = [host_to_idx_dict[metadata.Assembly_chainid[i]]
                 for i in range(len(metadata))]
     false_idx = []
-    if taxonomic_level:
+    if not taxonomic_level:
         for i in range(len(metadata)):
             idx = np.random.randint(plasmid_host.shape[1])
             while idx == true_idx[i]:
@@ -294,17 +290,48 @@ def generate_true_false_pairs(taxonomic_level=None):
 true_idx, false_idx = generate_true_false_pairs()
 
 # %% Construct positive and negative dataset
-X_pos = np.concatenate([plasmid_host_normalized[np.arange(plasmid_host_normalized.shape[0]), true_idx, np.newaxis],
-                        svpos[np.arange(svpos.shape[0]), true_idx, np.newaxis],
-                        blast_results_mat[np.arange(blast_results_mat.shape[0]), true_idx, np.newaxis]], axis=1)
-X_neg = np.concatenate([plasmid_host_normalized[np.arange(plasmid_host_normalized.shape[0]), false_idx, np.newaxis],
-                        svpos[np.arange(svpos.shape[0]),
-                              false_idx, np.newaxis],
-                        blast_results_mat[np.arange(blast_results_mat.shape[0]), false_idx, np.newaxis]], axis=1)
+
+
+def construct_data(index, *features):
+    data = []
+    for feature in features:
+        data.append(feature[np.arange(feature.shape[0]), index, np.newaxis])
+    return np.concatenate(data, axis=1)
+
+
+X_pos = construct_data(true_idx, plasmid_host, svpos, blast_results_mat)
+X_neg = construct_data(false_idx, plasmid_host, svpos, blast_results_mat)
 X = np.concatenate((X_pos, X_neg), axis=0)
 y = np.concatenate((np.ones(X_pos.shape[0]), np.zeros(X_neg.shape[0])))
 
+# %% Load pre-calculated d2* result
+d2star = np.load('d2star.npy')
+
+X_d2star_pos = construct_data(true_idx, d2star)
+X_d2star_neg = construct_data(false_idx, d2star)
+X_d2star = np.concatenate((X_d2star_pos, X_d2star_neg), axis=0)
+
 # %% Plot ROC curve and calculate AUC
+
+fpr, tpr, threshold = metrics.roc_curve(1 - y, X[:, 0])
+roc_auc = metrics.auc(fpr, tpr)
+
+plt.plot(fpr, tpr, label=f'$Mah$, AUC={roc_auc:.3f}')
+
+fpr_d2star, tpr_d2star, _ = metrics.roc_curve(1 - y, X_d2star)
+roc_auc_d2star = metrics.auc(fpr_d2star, tpr_d2star)
+
+plt.plot(fpr_d2star, tpr_d2star, label=f'$d_2^*$, AUC={roc_auc_d2star:.3f}')
+leg = plt.legend()
+vp = leg._legend_box._children[-1]._children[0]
+for c in vp._children:
+    c._children.reverse()
+vp.align = "right"
+
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.savefig('mah_d2star_comparison.pdf')
+
 
 # %%
 levelwise_similarity = False
@@ -509,6 +536,44 @@ plt.plot(np.sort(prediction.max(axis=1)), np.arange(
 plt.legend(loc=(1.04, 0.5))
 plt.show()
 
+
+# %% Calculate Mah distance with different k-mer length
+# k_lengths = [2, 3, 4, 6, 9]
+k_lengths = range(2, 5)
+for k in k_lengths:
+    t_varied_k = MahalanobisRelativeAbundance(
+        'data/hosts', 'data/plasmids_used', temp_directory_path='temp_dir/plasmid_host', k=k, recalculate=True)
+    plasmid_host_varied_k = t_varied_k.calc_distance(8)
+    np.save(f'results/mah_k{k}.npy')
+    util.save_obj(t_varied_k, f'results/mah_k{k}.pkl')
+
+# %% Plot the ROC curve of Mah distance with different k-mer length
+k_lengths = [2, 3, 4, 6, 9]
+# k_lengths = range(2, 10)
+
+true_idx, false_idx = generate_true_false_pairs()
+
+for k in k_lengths:
+    dist = np.load(f'results/mah_k{k}.npy')
+    X_pos = construct_data(true_idx, dist)
+    X_neg = construct_data(false_idx, dist)
+    X = np.concatenate((X_pos, X_neg), axis=0)
+    y = np.concatenate((np.ones(X_pos.shape[0]), np.zeros(X_neg.shape[0])))
+
+    fpr, tpr, threshold = metrics.roc_curve(1 - y, X)
+    roc_auc = metrics.auc(fpr, tpr)
+
+    plt.plot(fpr, tpr, label=f'$k={k}$, AUC={roc_auc:.3f}')
+
+leg = plt.legend()
+vp = leg._legend_box._children[-1]._children[0]
+for c in vp._children:
+    c._children.reverse()
+vp.align = "right"
+
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.savefig('kmer_length_comparison.pdf')
 
 # %%
 # import matplotlib.pyplot as plt
