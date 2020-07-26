@@ -87,6 +87,13 @@ def lowess_adjustment(y: List[np.ndarray], x, target):
 
 
 def count_nucleotide(file):
+    """Count occurrence of nucleotide in given file
+
+    :param file: Path to fasta file
+    :type file: str
+    :return: Count of A, C, G, T in given file
+    :rtype: np.ndarray
+    """
     nucleotides = ['A', 'C', 'G', 'T']
     try:
         f = open(file)
@@ -108,13 +115,11 @@ def count_nucleotide(file):
 
 
 def split_fasta_by_size(input_path, output_dir_path, size=5000):
-    """
-    Split a given fasta file and save the split fasta into the output directory
+    """Split a given fasta file and save the split fasta into the output directory
     
     :param input_path: path to the fasta file
     :param output_dir_path: path of the output directory
-    :param size:
-    :return:
+    :param size: 
     """
 
     if not os.path.exists(output_dir_path):
@@ -179,8 +184,8 @@ from io import StringIO
 
 
 def blast_single(fasta_path, db_path):
-    """
-    Blast the given fasta file to a NCBI database and calculate the percentage of aligned regions
+    """Blast the given fasta file to a NCBI database and calculate the percentage of aligned regions
+
     :param fasta_path:
     :param db_path:
     :return:
