@@ -14,7 +14,15 @@ NT_TYPE_NUM = 4
 
 
 class MahalanobisRelativeAbundance:
-    def __init__(self, subject_directory_path, query_directory_path, k=3, temp_directory_path='temp_dir', thread=1, recalculate=False):
+    def __init__(
+        self,
+        subject_directory_path,
+        query_directory_path,
+        k=3,
+        temp_directory_path="temp_dir",
+        thread=1,
+        recalculate=False,
+    ):
         # Initialization of variables
         self.subject_directory_path = subject_directory_path
         self.query_directory_path = query_directory_path
@@ -22,10 +30,10 @@ class MahalanobisRelativeAbundance:
         self.recalculate = recalculate
 
         self.k = k
-        nucleotides = ['A', 'C', 'G', 'T']
+        nucleotides = ["A", "C", "G", "T"]
         self.mer_to_idx = {}
         for i, mer in enumerate(product(nucleotides, repeat=k)):
-            self.mer_to_idx[''.join(list(mer))] = i
+            self.mer_to_idx["".join(list(mer))] = i
 
         # Number of threads to use in counting k-mer,
         # not use in calculation of M-dist as multi threading might slow down numpy calculation
@@ -36,13 +44,11 @@ class MahalanobisRelativeAbundance:
         os.makedirs(temp_directory_path, exist_ok=True)
 
         # Create buffered result directory to avoid re-calculation on repeated experiment
-        self.buffered_result_dir_path = os.path.join(
-            temp_directory_path, f'MahalanobisRelativeAbundance_k{k}')
+        self.buffered_result_dir_path = os.path.join(temp_directory_path, f"MahalanobisRelativeAbundance_k{k}")
         os.makedirs(self.buffered_result_dir_path, exist_ok=True)
 
-        print('Preparing splitted fasta for subject sequences')
-        subject_split_directory_path = os.path.join(
-            temp_directory_path, 'subject_split')
+        print("Preparing splitted fasta for subject sequences")
+        subject_split_directory_path = os.path.join(temp_directory_path, "subject_split")
         os.makedirs(subject_split_directory_path, exist_ok=True)
 
         # Split each subject into their target temp directory
@@ -52,8 +58,7 @@ class MahalanobisRelativeAbundance:
             subject_path = os.path.join(self.subject_directory_path, subject)
             subject_name = os.path.splitext(subject)[0]
             self.subject_name_list.append(subject_name)
-            subject_split_path = os.path.join(
-                subject_split_directory_path, subject_name)
+            subject_split_path = os.path.join(subject_split_directory_path, subject_name)
             if not os.path.exists(subject_split_path):
                 os.makedirs(subject_split_path)
                 util.split_fasta_by_size(subject_path, subject_split_path)
@@ -79,48 +84,51 @@ class MahalanobisRelativeAbundance:
 
     def calc_distance(self, thread=1):
         subject_directory_list = os.listdir(self.subject_directory_path)
-        subject_directory_list = [os.path.join(
-            self.subject_directory_path, f) for f in subject_directory_list if not f.startswith('.')]
+        subject_directory_list = [
+            os.path.join(self.subject_directory_path, f) for f in subject_directory_list if not f.startswith(".")
+        ]
         subject_directory_list.sort()
 
         query_directory_list = os.listdir(self.query_directory_path)
-        query_directory_list = [os.path.join(
-            self.query_directory_path, f) for f in query_directory_list if not f.startswith('.')]
+        query_directory_list = [
+            os.path.join(self.query_directory_path, f) for f in query_directory_list if not f.startswith(".")
+        ]
         query_directory_list.sort()
 
         # Prepare function with preset arguments for map and pool.map
-        count_single_nucleotide_with_preset = partial(self.count_single_nucleotide, output_directory_path=self.buffered_result_dir_path, recalculate=self.recalculate)
-        count_kmer_with_preset = partial(self.count_kmer, output_directory_path=self.buffered_result_dir_path, recalculate=self.recalculate)
+        count_single_nucleotide_with_preset = partial(
+            self.count_single_nucleotide,
+            output_directory_path=self.buffered_result_dir_path,
+            recalculate=self.recalculate,
+        )
+        count_kmer_with_preset = partial(
+            self.count_kmer, output_directory_path=self.buffered_result_dir_path, recalculate=self.recalculate,
+        )
 
         if thread == 1:
             print("Counting host nucleotide and kmer frequency...")
-            self.subject_single_count = * \
-                map(self.count_single_nucleotide, subject_directory_list),
-            self.subject_kmer_count = * \
-                map(self.count_kmer, subject_directory_list),
+            self.subject_single_count = (*map(self.count_single_nucleotide, subject_directory_list),)
+            self.subject_kmer_count = (*map(self.count_kmer, subject_directory_list),)
 
-            self.subject_single_freq = * \
-                map(self.normalize, self.subject_single_count),
-            self.subject_kmer_freq = * \
-                map(self.normalize, self.subject_kmer_count),
+            self.subject_single_freq = (*map(self.normalize, self.subject_single_count),)
+            self.subject_kmer_freq = (*map(self.normalize, self.subject_kmer_count),)
 
             print("Calculating host relative abundance...")
-            self.subject_relative_abundance = *map(self.calculate_relative_abundance, self.subject_kmer_freq,
-                                                   self.subject_single_freq),
+            self.subject_relative_abundance = (
+                *map(self.calculate_relative_abundance, self.subject_kmer_freq, self.subject_single_freq,),
+            )
 
             print("Counting plasmid nucleotide and kmer frequency...")
-            self.query_single_count = * \
-                map(self.count_single_nucleotide, query_directory_list),
-            self.query_kmer_count = * \
-                map(self.count_kmer, query_directory_list),
+            self.query_single_count = (*map(self.count_single_nucleotide, query_directory_list),)
+            self.query_kmer_count = (*map(self.count_kmer, query_directory_list),)
 
-            self.query_single_freq = * \
-                map(self.normalize, self.query_single_count),
-            self.query_kmer_freq = *map(self.normalize, self.query_kmer_count),
+            self.query_single_freq = (*map(self.normalize, self.query_single_count),)
+            self.query_kmer_freq = (*map(self.normalize, self.query_kmer_count),)
 
             print("Calculating plasmid relative abundance...")
-            self.query_relative_abundance = *map(self.calculate_relative_abundance, self.query_kmer_freq,
-                                                 self.query_single_freq),
+            self.query_relative_abundance = (
+                *map(self.calculate_relative_abundance, self.query_kmer_freq, self.query_single_freq,),
+            )
 
             print("Calculating Mahalanobis distance...")
             self.calculate_mahalanobis_distance()
@@ -132,34 +140,30 @@ class MahalanobisRelativeAbundance:
             # self.subject_single_count = p.map(
             #     self.count_single_nucleotide, subject_directory_list)
             self.subject_single_count = p.map(count_single_nucleotide_with_preset, subject_directory_list)
-            self.subject_kmer_count = p.map(
-                self.count_kmer, subject_directory_list)
+            self.subject_kmer_count = p.map(count_kmer_with_preset, subject_directory_list)
 
-            self.subject_single_freq = * \
-                map(self.normalize, self.subject_single_count),
-            self.subject_kmer_freq = * \
-                map(self.normalize, self.subject_kmer_count),
+            self.subject_single_freq = (*map(self.normalize, self.subject_single_count),)
+            self.subject_kmer_freq = (*map(self.normalize, self.subject_kmer_count),)
 
             print("Calculating host relative abundance...")
             # self.host_relative_abundance = p.starmap(self.calculate_relative_abundance, zip(self.host_kmer_freq, self.host_single_freq))
-            self.subject_relative_abundance = *map(self.calculate_relative_abundance, self.subject_kmer_freq,
-                                                   self.subject_single_freq),
+            self.subject_relative_abundance = (
+                *map(self.calculate_relative_abundance, self.subject_kmer_freq, self.subject_single_freq,),
+            )
 
             print("Counting plasmid nucleotide and kmer frequency...")
-            self.query_single_count = p.map(
-                self.count_single_nucleotide, query_directory_list)
-            self.query_kmer_count = * \
-                map(self.count_kmer, query_directory_list),
+            self.query_single_count = p.map(count_single_nucleotide_with_preset, query_directory_list)
+            self.query_kmer_count = (*map(count_kmer_with_preset, query_directory_list),)
 
-            self.query_single_freq = * \
-                map(self.normalize, self.query_single_count),
-            self.query_kmer_freq = *map(self.normalize, self.query_kmer_count),
+            self.query_single_freq = (*map(self.normalize, self.query_single_count),)
+            self.query_kmer_freq = (*map(self.normalize, self.query_kmer_count),)
 
             print("Calculating plasmid relative abundance...")
             # self.plasmid_relative_abundance = p.starmap(self.calculate_relative_abundance,
             #                                             zip(self.plasmid_kmer_freq, self.plasmid_single_freq))
-            self.query_relative_abundance = *map(self.calculate_relative_abundance, self.query_kmer_freq,
-                                                 self.query_single_freq),
+            self.query_relative_abundance = (
+                *map(self.calculate_relative_abundance, self.query_kmer_freq, self.query_single_freq,),
+            )
             p.close()
 
             print("Calculating Mahalanobis distance...")
@@ -170,7 +174,7 @@ class MahalanobisRelativeAbundance:
         return self.mahalanobis_distance
 
     @staticmethod
-    def count_single_nucleotide(path, output_directory_path='temp_dir', recalculate=False):
+    def count_single_nucleotide(path, output_directory_path="temp_dir", recalculate=False):
         """
         Count the number of occurrence of single nucleotides in a genome
 
@@ -179,17 +183,18 @@ class MahalanobisRelativeAbundance:
         :return:
         """
         if os.path.isdir(path):
-            return MahalanobisRelativeAbundance.count_single_nt_directory(path,
-                output_directory_path=output_directory_path, recalculate=recalculate)
+            return MahalanobisRelativeAbundance.count_single_nt_directory(
+                path, output_directory_path=output_directory_path, recalculate=recalculate,
+            )
         elif os.path.isfile(path):
-            return MahalanobisRelativeAbundance.count_single_nt_file(path,
-                output_directory_path=output_directory_path, recalculate=recalculate)
+            return MahalanobisRelativeAbundance.count_single_nt_file(
+                path, output_directory_path=output_directory_path, recalculate=recalculate,
+            )
 
     @staticmethod
-    def count_single_nt_directory(path, output_directory_path='temp_dir', recalculate=False):
+    def count_single_nt_directory(path, output_directory_path="temp_dir", recalculate=False):
         genome_name = os.path.split(path)[-1]
-        nt_count_single_path = os.path.join(
-            output_directory_path, f'{genome_name}_single_nt.npy')
+        nt_count_single_path = os.path.join(output_directory_path, f"{genome_name}_single_nt.npy")
         if os.path.exists(nt_count_single_path) and not recalculate:
             occ_matrix = np.load(nt_count_single_path)
             return occ_matrix
@@ -204,10 +209,9 @@ class MahalanobisRelativeAbundance:
         return occ_matrix
 
     @staticmethod
-    def count_single_nt_file(path, output_directory_path='temp_dir', recalculate=False):
+    def count_single_nt_file(path, output_directory_path="temp_dir", recalculate=False):
         genome_name = os.path.split(path)[-1]
-        nt_count_single_path = os.path.join(
-            output_directory_path, f'{genome_name}_single_nt.npy')
+        nt_count_single_path = os.path.join(output_directory_path, f"{genome_name}_single_nt.npy")
         if os.path.exists(nt_count_single_path) and not recalculate:
             occ = np.load(nt_count_single_path)
             return occ
@@ -215,7 +219,7 @@ class MahalanobisRelativeAbundance:
         np.save(nt_count_single_path, occ)
         return occ
 
-    def count_kmer(self, path, output_directory_path='temp_dir', recalculate=False):
+    def count_kmer(self, path, output_directory_path="temp_dir", recalculate=False):
         """
         Count the number of occurrence of kmers in a genome
 
@@ -224,9 +228,11 @@ class MahalanobisRelativeAbundance:
         :return:
         """
         if os.path.isdir(path):
-            return self.count_kmer_directory(path, output_directory_path=output_directory_path, recalculate=recalculate)
+            return self.count_kmer_directory(
+                path, output_directory_path=output_directory_path, recalculate=recalculate,
+            )
         elif os.path.isfile(path):
-            return self.count_kmer_file(path, output_directory_path=output_directory_path, recalculate=recalculate)
+            return self.count_kmer_file(path, output_directory_path=output_directory_path, recalculate=recalculate,)
 
     def exec_kmer_count(self, fasta_file_path):
         """
@@ -240,12 +246,10 @@ class MahalanobisRelativeAbundance:
 
         return k_mer_count
 
-    def count_kmer_directory(self, directory_path, output_directory_path='temp_dir',
-                             recalculate=False):
+    def count_kmer_directory(self, directory_path, output_directory_path="temp_dir", recalculate=False):
 
         genome_name = os.path.split(directory_path)[-1]
-        kmer_count_path = os.path.join(
-            output_directory_path, f'{genome_name}_kmer.npy')
+        kmer_count_path = os.path.join(output_directory_path, f"{genome_name}_kmer.npy")
 
         if os.path.exists(kmer_count_path) and not recalculate:
             kmer_count = np.load(kmer_count_path)
@@ -264,12 +268,10 @@ class MahalanobisRelativeAbundance:
 
         return kmer_count
 
-    def count_kmer_file(self, fasta_file_path, output_directory_path='temp_dir',
-                        recalculate=False):
+    def count_kmer_file(self, fasta_file_path, output_directory_path="temp_dir", recalculate=False):
 
         genome_name = os.path.split(fasta_file_path)[-1]
-        kmer_count_path = os.path.join(
-            output_directory_path, f'{genome_name}_kmer.npy')
+        kmer_count_path = os.path.join(output_directory_path, f"{genome_name}_kmer.npy")
 
         if os.path.exists(kmer_count_path) and not recalculate:
             kmer_count = np.load(kmer_count_path)
@@ -297,11 +299,9 @@ class MahalanobisRelativeAbundance:
             single_frequency_product = 1
         for i in range(k):
             if len(single_frequency.shape) == 2:
-                single_frequency_product = single_frequency_product * \
-                    single_frequency[:, int(kmer_idx % k)]
+                single_frequency_product = single_frequency_product * single_frequency[:, int(kmer_idx % k)]
             elif len(single_frequency.shape) == 1:
-                single_frequency_product = single_frequency_product * \
-                    single_frequency[int(kmer_idx % k)]
+                single_frequency_product = single_frequency_product * single_frequency[int(kmer_idx % k)]
             kmer_idx = kmer_idx / k
         return single_frequency_product
 
@@ -319,10 +319,12 @@ class MahalanobisRelativeAbundance:
         for i in range(multiple_frequency.shape[-1]):
             if len(multiple_frequency.shape) == 2:
                 frequency_product[:, i] = MahalanobisRelativeAbundance.calculate_frequency_product_single(
-                    single_frequency, i, k)
+                    single_frequency, i, k
+                )
             else:
-                frequency_product[i] = MahalanobisRelativeAbundance.calculate_frequency_product_single(single_frequency,
-                                                                                                       i, k)
+                frequency_product[i] = MahalanobisRelativeAbundance.calculate_frequency_product_single(
+                    single_frequency, i, k
+                )
         return frequency_product
 
     def calculate_relative_abundance(self, multiple_matrix, single_matrix):
@@ -334,8 +336,7 @@ class MahalanobisRelativeAbundance:
         :param int k: k-mer length
         :return:
         """
-        frequency_product = self.calculate_frequency_product_all(
-            multiple_matrix, single_matrix, self.k)
+        frequency_product = self.calculate_frequency_product_all(multiple_matrix, single_matrix, self.k)
         multiple_matrix[multiple_matrix == 0] = 1
         frequency_product[frequency_product == 0] = 1
         relative_abundance = multiple_matrix / frequency_product
@@ -352,8 +353,7 @@ class MahalanobisRelativeAbundance:
         return distance
 
     def calculate_mahalanobis_distance(self):
-        self.mahalanobis_distance = np.zeros(
-            (len(self.query_relative_abundance), len(self.subject_relative_abundance)))
+        self.mahalanobis_distance = np.zeros((len(self.query_relative_abundance), len(self.subject_relative_abundance)))
         for i, plasmid_ra in enumerate(self.query_relative_abundance):
             for j, host_ra in enumerate(self.subject_relative_abundance):
                 plasmid_relative_abundance = plasmid_ra.flatten()
