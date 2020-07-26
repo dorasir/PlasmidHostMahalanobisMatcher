@@ -542,9 +542,9 @@ plt.show()
 k_lengths = range(2, 5)
 for k in k_lengths:
     t_varied_k = MahalanobisRelativeAbundance(
-        'data/hosts', 'data/plasmids_used', temp_directory_path='temp_dir/plasmid_host', k=k, recalculate=True)
+        'data/hosts_no_plasmid', 'data/plasmids_used', temp_directory_path='temp_dir/plasmid_host', k=k, recalculate=True)
     plasmid_host_varied_k = t_varied_k.calc_distance(8)
-    np.save(f'results/mah_k{k}.npy')
+    np.save(f'results/mah_k{k}.npy', plasmid_host_varied_k)
     util.save_obj(t_varied_k, f'results/mah_k{k}.pkl')
 
 # %% Plot the ROC curve of Mah distance with different k-mer length
