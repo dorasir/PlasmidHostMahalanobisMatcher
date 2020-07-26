@@ -3,7 +3,7 @@ import os
 import util
 from itertools import product
 from multiprocessing import Pool
-from tools import kmer_count
+from src._count import kmer_count
 from functools import partial
 
 # np.seterr(all='raise')
