@@ -1,5 +1,3 @@
-from genericpath import exists
-from tmp import rec
 import numpy as np
 import os
 import util
@@ -368,8 +366,9 @@ class MahalanobisRelativeAbundance:
                 self.mahalanobis_distance[i, j] = distance
 
     @staticmethod
-    def normalize(ndarray):
+    def normalize(ndarray: np.ndarray):
         if len(ndarray.shape) == 2:
-            return np.nan_to_num(ndarray / ndarray.sum(axis=1)[:, None])
+            # return np.nan_to_num(ndarray / ndarray.sum(axis=1)[:, None])
+            return np.nan_to_num(ndarray / ndarray.sum(axis=1, keepdims=True))
         if len(ndarray.shape) == 1:
             return np.nan_to_num(ndarray / ndarray.sum())
