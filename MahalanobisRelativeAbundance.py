@@ -250,21 +250,21 @@ class MahalanobisRelativeAbundance:
         kmer_count_path = os.path.join(output_directory_path, f"{genome_name}_kmer.npy")
 
         if os.path.exists(kmer_count_path) and not recalculate:
-            kmer_count = np.load(kmer_count_path)
-            return kmer_count
+            k_mer_count = np.load(kmer_count_path)
+            return k_mer_count
 
         fasta_list = os.listdir(directory_path)
 
-        kmer_count = np.zeros((len(fasta_list), NT_TYPE_NUM ** self.k))
+        k_mer_count = np.zeros((len(fasta_list), NT_TYPE_NUM ** self.k))
 
         for i, fasta_filename in enumerate(fasta_list):
             fasta_file_path = os.path.join(directory_path, fasta_filename)
             fasta_kmer_count = self.exec_kmer_count(fasta_file_path)
-            kmer_count[i, :] = fasta_kmer_count
+            k_mer_count[i, :] = fasta_kmer_count
 
-        np.save(kmer_count_path, kmer_count)
+        np.save(kmer_count_path, k_mer_count)
 
-        return kmer_count
+        return k_mer_count
 
     def count_kmer_file(self, fasta_file_path, output_directory_path="temp_dir", recalculate=False):
 
@@ -272,14 +272,14 @@ class MahalanobisRelativeAbundance:
         kmer_count_path = os.path.join(output_directory_path, f"{genome_name}_kmer.npy")
 
         if os.path.exists(kmer_count_path) and not recalculate:
-            kmer_count = np.load(kmer_count_path)
-            return kmer_count
+            k_mer_count = np.load(kmer_count_path)
+            return k_mer_count
 
-        kmer_count = self.exec_kmer_count(fasta_file_path)
+        k_mer_count = self.exec_kmer_count(fasta_file_path)
 
-        np.save(kmer_count_path, kmer_count)
+        np.save(kmer_count_path, k_mer_count)
 
-        return kmer_count
+        return k_mer_count
 
     @staticmethod
     def calculate_frequency_product_single(single_frequency: np.ndarray, kmer_idx, k):
