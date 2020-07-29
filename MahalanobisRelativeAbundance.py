@@ -297,10 +297,10 @@ class MahalanobisRelativeAbundance:
             single_frequency_product = 1
         for i in range(k):
             if len(single_frequency.shape) == 2:
-                single_frequency_product = single_frequency_product * single_frequency[:, int(kmer_idx % k)]
+                single_frequency_product = single_frequency_product * single_frequency[:, int(kmer_idx % 4)]
             elif len(single_frequency.shape) == 1:
-                single_frequency_product = single_frequency_product * single_frequency[int(kmer_idx % k)]
-            kmer_idx = kmer_idx / k
+                single_frequency_product = single_frequency_product * single_frequency[int(kmer_idx % 4)]
+            kmer_idx = kmer_idx / 4
         return single_frequency_product
 
     @staticmethod
