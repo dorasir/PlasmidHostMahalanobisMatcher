@@ -2,12 +2,13 @@ import argparse
 import os
 import sys
 from MahalanobisRelativeAbundance import MahalanobisRelativeAbundance
+import util
 
 parser = argparse.ArgumentParser(description='PlasmidHostMatcher')
 parser.add_argument('-q', dest='query_plasmid_dir', nargs=1, required=True,
                     help='Directory containing query plasmid genomes with .fasta or .fa suffix')
-parser.add_argument('-s', dest='subject_host_dir', nargs=1, required=True,
-                    help='Directory containing subject host genomes with .fasta or .fa suffix')
+parser.add_argument('-s', dest='subject_host', nargs=1, required=True,
+                    help='Can be a directory containing subject host genomes with .fasta or .fa suffix or a blast database')
 parser.add_argument('-o', dest='output_dir', nargs=1,
                     required=True, help='Output directory')
 parser.add_argument('-t', dest='num_threads', nargs=1, type=int, default=[1],
@@ -21,12 +22,12 @@ parser.add_argument('-i', dest='intermediate_dir', nargs=1, default=['./intermed
 args = parser.parse_args()
 
 if __name__ == "__main__":
-    plasmid_dir = args.query_plasmid_dir
-    host_dir = args.subject_host_dir
-    temp_dir = args.intermediate_dir
+    if os.path.isdir(args.subject_host):
+        if util.check_directory_content:
+            util.fasta_to_database(args.subject_host, )
 
     # Calculate plasmid host Mahalanobis distance
-    t = MahalanobisRelativeAbundance(args.subject_host_dir, args.query_plasmid_dir,
+    t = MahalanobisRelativeAbundance(args.subject_host, args.query_plasmid_dir,
                                      temp_directory_path=args.intermediate_dir, thread=args.num_threads)
 
     # Calculate blast distance

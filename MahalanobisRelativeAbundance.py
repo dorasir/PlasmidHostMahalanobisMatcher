@@ -3,7 +3,7 @@ import os
 import util
 from itertools import product
 from multiprocessing import Pool
-from src._count import kmer_count
+from tools import kmer_count
 from functools import partial
 
 # np.seterr(all='raise')
@@ -80,6 +80,8 @@ class MahalanobisRelativeAbundance:
         self.query_kmer_freq = 0
         self.query_relative_abundance = 0  # (n) dim ndarray
 
+        self.nan_substitute = 1e-4
+
     def calc_distance(self, thread=1):
         subject_directory_list = os.listdir(self.subject_directory_path)
         subject_directory_list = [
@@ -144,7 +146,7 @@ class MahalanobisRelativeAbundance:
             self.subject_kmer_freq = (*map(self.normalize, self.subject_kmer_count),)
 
             print("Calculating host relative abundance...")
-            # self.host_relative_abundance = p.starmap(self.calculate_relative_abundance, zip(self.host_kmer_freq, self.host_single_freq))
+            # self.subject_relative_abundance = p.starmap(self.calculate_relative_abundance, zip(self.subject_kmer_freq, self.subject_single_freq))
             self.subject_relative_abundance = (
                 *map(self.calculate_relative_abundance, self.subject_kmer_freq, self.subject_single_freq,),
             )
@@ -313,7 +315,20 @@ class MahalanobisRelativeAbundance:
         :param k: k-mer length
         :return:
         """
-        frequency_product = np.zeros(multiple_frequency.shape)
+        # frequency_product = np.zeros(multiple_frequency.shape)
+
+        frequency_product = np.ones(multiple_frequency.shape)
+        kmer_index = np.vstack(list(product(range(4), repeat=k)))
+
+        for i in range(k):
+            if len(multiple_frequency.shape) == 2:
+                intermediate_frequency = single_frequency[:, kmer_index[:, i]]
+                frequency_product = frequency_product * intermediate_frequency
+            else:
+                intermediate_frequency = single_frequency[kmer_index[:, i]]
+                frequency_product = frequency_product * intermediate_frequency
+        return frequency_product
+
         for i in range(multiple_frequency.shape[-1]):
             if len(multiple_frequency.shape) == 2:
                 frequency_product[:, i] = MahalanobisRelativeAbundance.calculate_frequency_product_single(
@@ -369,6 +384,8 @@ class MahalanobisRelativeAbundance:
     def normalize(ndarray: np.ndarray):
         if len(ndarray.shape) == 2:
             # return np.nan_to_num(ndarray / ndarray.sum(axis=1)[:, None])
-            return np.nan_to_num(ndarray / ndarray.sum(axis=1, keepdims=True))
+            return np.nan_to_num(
+                ndarray / ndarray.sum(axis=1, keepdims=True), nan=MahalanobisRelativeAbundance.nan_substitute
+            )
         if len(ndarray.shape) == 1:
-            return np.nan_to_num(ndarray / ndarray.sum())
+            return np.nan_to_num(ndarray / ndarray.sum(), nan=MahalanobisRelativeAbundance.nan_substitute)

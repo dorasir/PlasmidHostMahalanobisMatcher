@@ -2,6 +2,7 @@
 d/
 data/
 data_old/
+data_exp
 e_coli/
 figures/
 hash/
@@ -9,6 +10,7 @@ results/
 taxdump/
 temp_dir/
 __pycache__/
+archived
 
 *.npy
 *.pkl

@@ -20,11 +20,11 @@ PlasmidHostMahalanobisMatcher is a software for predicting the possible host for
   ```
 * For MacOS, run the following command to setup
   ```
-  MACOSX_DEPLOYMENT_TARGET=10.9 CC=g++ python setup.py install --install-platlib=.
+  MACOSX_DEPLOYMENT_TARGET=10.9 CC=g++ python setup.py install --install-platlib=src
   ```
 * For Linux, run the following command to setup
   ```
-  CC=g++ python setup.py install --install-platlib=.
+  CC=g++ python setup.py install --install-platlib=src
   ```
 
 ## Data availability
