@@ -262,3 +262,17 @@ def check_directory_content(directory_path):
         if not file.endswith('.fasta') or file.endswith('.fa'):
             raise RuntimeError("Contains non-fasta file within provided directory.")
     return True
+
+
+def seq2onehot(seq):
+    onehot = np.zeros((len(seq), 4))
+    for i, c in enumerate(seq):
+        if c == 'A':
+            onehot[i, 0] = 1
+        elif c == 'C':
+            onehot[i, 1] = 1
+        elif c == 'G':
+            onehot[i, 2] = 1
+        elif c == 'T':
+            onehot[i, 3] = 1
+    return onehot
