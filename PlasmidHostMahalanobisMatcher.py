@@ -45,7 +45,6 @@ parser.add_argument(
 
 args = parser.parse_args()
 
-training_plasmid_host = np.load('')
 
 def construct_data(index, *features):
     data = []
@@ -54,16 +53,22 @@ def construct_data(index, *features):
     return np.concatenate(data, axis=1)
 
 
-def calc_svpos_training(plasmid_plasmid_dist: np.ndarray, plasmid_host_interaction_indicator, train_index, test_index):
-    train_test_distance = plasmid_plasmid_dist[np.ix_(test_index, train_index)]
-    train_host_indicator = plasmid_host_interaction_indicator[train_index]
-    svpos = train_test_distance.dot(train_host_indicator) / train_host_indicator.sum(axis=0)
+def calc_svpos(plasmid_plasmid_dist: np.ndarray, plasmid_host_interaction_indicator):
+    svpos = plasmid_plasmid_dist.dot(plasmid_host_interaction_indicator) / plasmid_host_interaction_indicator.sum(axis=0)
     return np.nan_to_num(svpos)
+
 
 if __name__ == "__main__":
     if os.path.isdir(args.subject_host):
         if util.check_directory_content:
-            util.fasta_to_database(args.subject_host,)
+            util.fasta_to_database(
+                args.subject_host,
+            )
+
+    TRAINING_DIST_PATH = ""
+    training_plasmid_host = np.load(TRAINING_DIST_PATH)
+    TRAINING_INDICATOR_PATH = ""
+    training_interaction_indicator = np.load(TRAINING_INDICATOR_PATH)
 
     # Calculate plasmid host Mahalanobis distance
     t = MahalanobisRelativeAbundance(
@@ -88,9 +93,9 @@ if __name__ == "__main__":
 
     # Calculate test-training plasmid distance and svpos
     test_plasmid_to_train_plasmid = util.cosine_similarity(plasmid_host, training_plasmid_host)
-    svpos = calc_svpos_training
+    svpos = calc_svpos(test_plasmid_to_train_plasmid, training_interaction_indicator)
 
-    model_path = ''
+    model_path = ""
     model = pickle.load(model_path)
 
     idx = np.arange(plasmid_host.shape[0])
@@ -98,4 +103,4 @@ if __name__ == "__main__":
 
     prediction = model.predict_proba(data)
 
-    print('Complete!')
+    print("Complete!")
