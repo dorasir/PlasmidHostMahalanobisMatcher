@@ -19,7 +19,7 @@ parser.add_argument(
     dest="subject_host",
     nargs=1,
     required=True,
-    help="Can be a directory containing subject host genomes with .fasta or .fa suffix or a blast database",
+    help="Path to the downloaded host blast database",
 )
 parser.add_argument("-o", dest="output_dir", nargs=1, required=True, help="Output directory")
 parser.add_argument(
@@ -65,9 +65,12 @@ if __name__ == "__main__":
                 args.subject_host,
             )
 
-    TRAINING_DIST_PATH = ""
-    training_plasmid_host = np.load(TRAINING_DIST_PATH)
-    TRAINING_INDICATOR_PATH = ""
+    """Asset will be downloaded and stored at designated path"""
+    TRAINING_ASSETS_PATH = ""
+    training_assets = util.load_obj(TRAINING_ASSETS_PATH)
+
+    training_plasmid_host = training_assets.plasmid_host
+    training_metadata = training_assets.metadata
     training_interaction_indicator = np.load(TRAINING_INDICATOR_PATH)
 
     # Calculate plasmid host Mahalanobis distance
