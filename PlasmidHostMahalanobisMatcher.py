@@ -22,7 +22,7 @@ parser.add_argument(
 #     required=True,
 #     help="Path to the downloaded host blast database",
 # )
-parser.add_argument("-o", dest="output", nargs=1, required=True, help="Output file")
+parser.add_argument("-o", dest="output", nargs=1, required=True, default=['output.txt'], help="Output file")
 parser.add_argument(
     "-t", dest="num_threads", nargs=1, type=int, default=[2], help="Number of threads to use. Default = 1"
 )
