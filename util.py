@@ -276,3 +276,10 @@ def seq2onehot(seq):
         elif c == 'T':
             onehot[i, 3] = 1
     return onehot
+
+
+def construct_data(index, *features):
+    data = []
+    for feature in features:
+        data.append(feature[np.arange(feature.shape[0]), index, np.newaxis])
+    return np.concatenate(data, axis=1)
