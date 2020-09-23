@@ -12,6 +12,8 @@ NT_TYPE_NUM = 4
 
 
 class MahalanobisRelativeAbundance:
+    nan_substitute = 1e-4
+
     def __init__(
         self,
         subject_directory_path,
@@ -79,8 +81,6 @@ class MahalanobisRelativeAbundance:
         self.query_single_freq = 0
         self.query_kmer_freq = 0
         self.query_relative_abundance = 0  # (n) dim ndarray
-
-        self.nan_substitute = 1e-4
 
     def calc_distance(self, thread=1):
         subject_directory_list = os.listdir(self.subject_directory_path)
