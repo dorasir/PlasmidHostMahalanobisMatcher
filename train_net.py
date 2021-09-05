@@ -1,12 +1,8 @@
 # %% Initial import
-from operator import truediv
-
 from matplotlib.pyplot import xticks
-# from tmp import blast_matrix
 import sklearn.metrics as metrics
 from Bio.SeqIO import index
 import matplotlib.pyplot as plt
-from numpy.lib.function_base import average
 from sklearn import metrics
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
