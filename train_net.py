@@ -269,8 +269,9 @@ for i in range(len(metadata)):
             idx = host_to_idx_dict[int(key[4:])]
             blast_results_mat[i, idx] = series[key]
 
-# %% Calculate svpos
+# %% Calculate svpos and svneg
 svpos = plasmid_plasmid.dot(interaction_table) / interaction_table.sum(axis=0)
+svneg = plasmid_plasmid.dot(1 - interaction_table) / (1 - interaction_table).sum(axis=0)
 
 # %% Construct species taxid to index mapping
 speciesid_to_idx_list = list(set(metadata.Assembly_speciestaxid))
@@ -358,7 +359,7 @@ X_d2star_pos = construct_data(true_idx, d2star)
 X_d2star_neg = construct_data(false_idx, d2star)
 X_d2star = np.concatenate((X_d2star_pos, X_d2star_neg), axis=0)
 
-# %% Plot ROC curve and calculate AUC
+# %% Plot ROC curve and calculate AUC, comparison between mah and d2star
 
 fpr, tpr, threshold = metrics.roc_curve(1 - y, X[:, 0])
 roc_auc = metrics.auc(fpr, tpr)
@@ -404,7 +405,9 @@ plt.ylabel("True Positive Rate")
 plt.legend()
 plt.show()
 
-# %%
+# %% Define the host similarity when used for training, if levelwise_similarity is set to False
+# then all host in different species are set to 0, else give weight according to at which level
+# they differ
 levelwise_similarity = False
 host_similarity = np.zeros((len(host_list), len(host_list)))
 host_lineage = {}
@@ -432,8 +435,7 @@ for i in range(len(host_list)):
                         host_similarity[i, j] = 1 * (10 ** (k - 6))
                         break
 
-# %% Function for calculating svpos
-
+# %% Function for calculating svpos between training and test set
 
 def calc_svpos_training(plasmid_plasmid_dist: np.ndarray, plasmid_host_interaction_indicator, train_index, test_index):
     train_test_distance = plasmid_plasmid_dist[np.ix_(test_index, train_index)]
@@ -441,9 +443,7 @@ def calc_svpos_training(plasmid_plasmid_dist: np.ndarray, plasmid_host_interacti
     svpos = train_test_distance.dot(train_host_indicator) / train_host_indicator.sum(axis=0)
     return np.nan_to_num(svpos)
 
-
-# %% Train and test the model
-
+# Train and test the model
 
 def evaluate_performance(
     model,
@@ -456,8 +456,6 @@ def evaluate_performance(
     print_progress=True,
     **kwargs,
 ):
-    """
-    """
     acc = []
 
     if len(kwargs) == 0:
