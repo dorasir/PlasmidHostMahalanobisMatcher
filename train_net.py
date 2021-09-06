@@ -581,6 +581,30 @@ acc = evaluate_performance(
     train_test_indices=train_test_indicies
 )
 
+# %% Test the model with mah and blast
+model = LogisticRegression(class_weight="balanced", n_jobs=8)
+acc_no_svpos = evaluate_performance(
+    model,
+    true_idx,
+    host_similarity,
+    repeat=repeat,
+    use_max=True,
+    plasmid_host=plasmid_host_normalized,
+    blast=blast_results_mat,
+    train_test_indices=train_test_indicies
+)
+
+# %% Test the model with only mah
+model = LogisticRegression(class_weight="balanced", n_jobs=8)
+acc_no_svpos_blast = evaluate_performance(
+    model,
+    true_idx,
+    host_similarity,
+    repeat=repeat,
+    use_max=True,
+    plasmid_host=plasmid_host_normalized,
+    train_test_indices=train_test_indicies
+)
 # %%
 model = LogisticRegression(class_weight="balanced", n_jobs=8)
 acc_d2star = evaluate_performance(
