@@ -341,7 +341,11 @@ def construct_data(index, *features):
     return np.concatenate(data, axis=1)
 
 
-# %%
+# %% Generate positive and negative set and construct the 2D array of samples
+
+# true_idx, false_idx = generate_true_false_pairs()
+true_idx, false_idx = generate_true_false_pairs(taxonomic_level='phylum')
+
 X_pos = construct_data(true_idx, plasmid_host, svpos, blast_results_mat)
 X_neg = construct_data(false_idx, plasmid_host, svpos, blast_results_mat)
 X = np.concatenate((X_pos, X_neg), axis=0)
