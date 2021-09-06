@@ -27,10 +27,17 @@ desired_ranks = ["phylum", "class", "order", "family", "genus", "species"]
 
 
 def taxid_to_lineage(taxid):
-    """
-    Function for retrieving the taxonomic rank of given taxid
-    :param taxid:
-    :return:
+    """Function for retrieving the taxonomic rank of given taxid
+
+    Parameters
+    ----------
+    taxid : int
+        The taxid of the organism
+
+    Returns
+    -------
+    dict
+        A dict containing the name of each taxonomic rank of the given organism
     """
     ncbi = NCBITaxa()
     lineage = ncbi.get_lineage(taxid)
@@ -43,6 +50,17 @@ def taxid_to_lineage(taxid):
 
 
 def taxonomic_accuracy(prediction, target, use_max=False):
+    """Calculate the prediction accuracy at different taxonomy level given a series of prediction and a series of target
+
+    :param prediction: A 2D array, each row represents the prediction for a plasmid, each column represents a host
+    :type prediction: np.ndarray
+    :param target: A list containing the true host for each plasmid
+    :type target: list
+    :param use_max: If the prediction gives higher score for a more likely host or not, defaults to False
+    :type use_max: bool, optional
+    :return: An 1D array containing the accuracy at each taxonomy level
+    :rtype: np.ndarray
+    """
     cnt = np.zeros(7)
     for i in range(prediction.shape[0]):
         if use_max:
@@ -53,7 +71,7 @@ def taxonomic_accuracy(prediction, target, use_max=False):
         for j, rank in enumerate(desired_ranks):
             if rank_to_id_1[rank] == rank_to_id_2[rank] and rank_to_id_1[rank] is not None:
                 cnt[j] += 1
-    """Strain accuracy is handled separately"""
+    # Strain accuracy is handled separately
     if use_max:
         cnt[6] = np.sum(prediction.argmax(axis=1) == target)
     else:
@@ -66,6 +84,17 @@ def taxonomic_accuracy(prediction, target, use_max=False):
 
 
 def taxonomic_accuracy_threshold(prediction, target, use_max=True):
+    """Calculate the change of prediction accuracy with moving threshold
+    
+    :param prediction: A 2D array, each row represents the prediction for a plasmid, each column represents a host
+    :type prediction: np.ndarray
+    :param target: A list containing the true host for each plasmid
+    :type target: list
+    :param use_max: If the prediction gives higher score for a more likely host or not, defaults to False
+    :type use_max: bool, optional
+    :return: An 1D array containing the accuracy at each taxonomy level
+    :rtype: np.ndarray
+    """
     order = np.argsort(prediction.max(axis=1))
     prediction = prediction[order, :]
     target = target[order.astype(int)]
@@ -182,7 +211,7 @@ interaction_table = np.zeros((len(metadata), len(set(host_list))))
 for i in range(len(metadata)):
     interaction_table[i, host_to_idx_dict[metadata.Assembly_chainid[i]]] = 1
 
-# %% Construct plasmid interaction table based on species
+# Construct plasmid interaction table based on species
 host_to_speciesid = {}
 speciesid_to_host = {}
 for i in range(len(metadata)):
