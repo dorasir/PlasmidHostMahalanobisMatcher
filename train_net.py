@@ -562,14 +562,14 @@ plt.legend(loc=(1.04, 0.5))
 plt.savefig("threshold.pdf", bbox_inches="tight")
 
 
-# %%
+# %% Set up number of repeat for the experiment and split train test sets
 repeat = 5
 train_test_indicies = []
 for i in range(repeat):
     idx_train, idx_test = train_test_split(np.arange(6510), test_size=0.2)
     train_test_indicies.append((idx_train, idx_test))
 
-# %%
+# %% Test the model with all three features
 model = LogisticRegression(class_weight="balanced", n_jobs=8)
 acc = evaluate_performance(
     model,
