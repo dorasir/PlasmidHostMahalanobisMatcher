@@ -284,6 +284,13 @@ species = [speciesid_to_idx[metadata.Assembly_speciestaxid[i]] for i in range(le
 
 
 def generate_true_false_pairs(taxonomic_level=None):
+    """Split the dataset into true and false sets
+
+    :param taxonomic_level: False pairs are only selected from given taxonomy level if given, defaults to None
+    :type taxonomic_level: str, optional
+    :return: Index of true and false pairs
+    :rtype: list, list
+    """
     true_idx = [host_to_idx_dict[metadata.Assembly_chainid[i]] for i in range(len(metadata))]
     false_idx = []
     if not taxonomic_level:
@@ -321,6 +328,13 @@ true_idx, false_idx = generate_true_false_pairs()
 
 
 def construct_data(index, *features):
+    """Given indexes and features, concatenate all features with selected samples
+
+    :param index: Indexes of samples
+    :type index: list
+    :return: 2D array with each row as a sample and each column as a feature
+    :rtype: np.ndarray
+    """
     data = []
     for feature in features:
         data.append(feature[np.arange(feature.shape[0]), index, np.newaxis])
