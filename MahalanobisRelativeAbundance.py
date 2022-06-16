@@ -367,16 +367,14 @@ class MahalanobisRelativeAbundance:
 
     def calculate_mahalanobis_distance(self):
         self.mahalanobis_distance = np.zeros((len(self.query_relative_abundance), len(self.subject_relative_abundance)))
-        for i, plasmid_ra in enumerate(self.query_relative_abundance):
-            for j, host_ra in enumerate(self.subject_relative_abundance):
-                plasmid_relative_abundance = plasmid_ra.flatten()
-                host_mean = host_ra.mean(axis=0)
-                diff = plasmid_relative_abundance - host_mean
-                cov = np.cov(host_ra.T)
-                try:
-                    cov_inv = np.linalg.inv(cov)
-                except np.linalg.LinAlgError:
-                    cov_inv = np.linalg.pinv(cov)
+        for j, host_ra in enumerate(tqdm(self.subject_relative_abundance)):
+            # host_mean = host_ra.mean(axis=0)
+            host_mean = np.nanmean(host_ra, axis=0)
+            cov = np.cov(host_ra.T)
+            try:
+                cov_inv = np.linalg.inv(cov)
+            except np.linalg.LinAlgError:
+                cov_inv = np.linalg.pinv(cov)   
                 distance = diff[None, :].dot(cov_inv).dot(diff)
                 self.mahalanobis_distance[i, j] = distance
 
